@@ -1,0 +1,6 @@
+Building DAG of jobs...
+MissingInputException in line 40 of /g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/variantfile_preparation/snakefile:
+Missing input files for rule all:
+/annovar_anno/density_filter/HLT282.merged.mm10_multianno.txt
+/annovar_anno/density_filter/HLT450.merged.mm10_multianno.txt
+/annovar_anno/density_filter/HLT279.merged.mm10_multianno.txt

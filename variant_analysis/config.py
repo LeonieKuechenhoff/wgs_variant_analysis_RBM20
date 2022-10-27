@@ -1,0 +1,5 @@
+basedir = "/g/steinmetz/project/leonie_crispr/03_data/01_heartproject/snakemake_vcf"
+outdir = "/g/steinmetz/project/leonie_crispr/03_data/01_heartproject/snakemake_vcf/plots"
+tissue_specdir = "/g/steinmetz/project/leonie_crispr/03_data/01_heartproject/snakemake_vcf/tissue_spec_vars"
+annotation_dir = "/g/steinmetz/project/leonie_crispr/03_data/01_heartproject/snakemake_vcf/annovar_anno/density_filter"
+reference_seq = "/g/steinmetz/project/leonie_crispr/03_data/01_heartproject/reference_genome/mm10_AAV.fa"

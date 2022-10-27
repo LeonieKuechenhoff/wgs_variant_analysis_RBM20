@@ -1,0 +1,4 @@
+Building DAG of jobs...
+MissingInputException in line 77 of /g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/variantfile_preparation/snakefile:
+Missing input files for rule norm_db_entries:
+known_variants_vcfs/mgp.v5.snps.indels.dbSNP142.pass.chr.sort.vcf.gz

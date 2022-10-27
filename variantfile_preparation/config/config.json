@@ -1,0 +1,8 @@
+{
+    "basedir" : "/g/steinmetz/project/leonie_crispr/03_data/01_heartproject/snakemake_vcf",
+    "snp_path" : "/g/steinmetz/project/leonie_crispr/03_data/01_heartproject/known_variants_vcfs/mouse.dbsnp.chr.sort.vcf.gz",
+    "mgp_path1" : "/g/steinmetz/project/leonie_crispr/03_data/01_heartproject/known_variants_vcfs/mgp.v5.indels.pass.chr.sort.vcf.gz",
+    "mgp_path2": "/g/steinmetz/project/leonie_crispr/03_data/01_heartproject/known_variants_vcfs/mgp.v5.merged.snps_all.dbSNP142.pass.chr.sort.vcf.gz",
+    "reference_seq" : "/g/steinmetz/project/leonie_crispr/03_data/01_heartproject/reference_genome/mm10_AAV.fa"
+  }
+  

@@ -1,0 +1,2 @@
+SyntaxError in line 84 of /g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/variantfile_preparation/snakefile:
+positional argument follows keyword argument (snakefile, line 84)

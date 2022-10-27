@@ -1,0 +1,21 @@
+Job stats:
+job                     count    min threads    max threads
+--------------------  -------  -------------  -------------
+all                         1              1              1
+concat                      3              1              1
+concat_db_entries           1              1              1
+create_filter_tables        3              1              1
+det_overlap                 3              1              1
+gt_annotator                9              1              1
+make_txt                    3              1              1
+merge2                      3              1              1
+merge_ls_sep                6              1              1
+norm3                       3              1              1
+norm_db_entries             1              1              1
+norm_ls                    18              1              1
+passfilter                  6              1              1
+passfilter_ls              18              1              1
+reheader                    6              1              1
+sort                        6              1              1
+total                      90              1              1
+

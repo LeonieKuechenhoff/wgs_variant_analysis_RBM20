@@ -1,0 +1,348 @@
+
+# Author: Leonie Küchenhoff
+# Date: Sep 01st, 2022
+# Snakemake workflow to normalize, filter, and merge vcf files from differnt tissues and variant callers into one txt file.
+# Prerequisites:
+# 1. Folder in base directory (set below) named lofreq_scalpel with lofreq / scalpel output
+# 2. Folder in base directory (set below) named variant_caller_out with mutect2 / haplotype caller output
+# 3. Folder in base directory (set below) named known_variants_vcfs with SNP / INDEL database entires (dbsnp & mgp)
+# 4. Folder in base directory (set below) named annovar_anno with genome mouse annotation (files mm10_refGene0.txt  mm10_refGeneMrna.fa  mm10_refGene.txt)
+
+import os 
+
+helper_scripts = str(os.getcwd())
+configfile: str(helper_scripts+ "/config/config.json")
+os.chdir(config["basedir"])
+snp_path = config["snp_path"]
+mgp_path1 = config["mgp_path1"]
+mgp_path2 = config["mgp_path2"]
+refseq = config["reference_seq"]
+
+
+SAMPLE, VARCALLER =  map(set, glob_wildcards('variant_caller_out/HLT{sample, [0-9]+}.{varcaller}.vcf.gz'))
+VARCALLER_LS = set(glob_wildcards('lofreq_scalpel/{tissue, [A-Z]}{sample, [0-9]+}.{varcaller}.vcf.gz')[2])
+TISSUE = ['H', 'L', 'T']
+
+onstart:
+    print("##### Creating output subfolders #####\n") 
+    shell("mkdir -p lofreq_scalpel/filtered")
+    shell("mkdir -p lofreq_scalpel/normalized")
+    shell("mkdir -p variant_caller_out/normalized")
+    shell("mkdir -p merged")
+    shell("mkdir -p merged/reheader")
+    shell("mkdir -p merged/txt_files")
+    shell("mkdir -p merged/txt_files/ad_hc_mu")
+    shell("mkdir -p known_variants_vcfs/overlap")
+    shell("mkdir -p annovar_anno/density_filter")
+
+rule all:
+    input:
+        expand('merged/txt_files/ad_hc_mu/HLT{sample}.specific.txt', sample = SAMPLE),
+        expand('annovar_anno/density_filter/HLT{sample}.merged.mm10_multianno.txt', sample = SAMPLE),
+        'known_variants_vcfs/normalized/sorted/mouse.dbsnp.chr.sort.vcf.gz', 
+        'known_variants_vcfs/normalized/sorted/mgp.v5.snps.indels.dbSNP142.pass.chr.sort.vcf.gz'
+
+
+
+
+
+rule passfilter:
+    # only variants with high quality are kept 
+    input:
+        'variant_caller_out/HLT{sample}.{varcaller}.vcf.gz'
+    output:
+        filter = 'variant_caller_out/filtered/HLT{sample}.{varcaller}.vcf.gz',
+        norm = 'variant_caller_out/normalized/HLT{sample}.{varcaller}.vcf.gz'
+    wildcard_constraints:
+        sample = '[0-9]+'
+    params:
+        refseq = refseq
+    threads:
+        1
+    shell:
+        '''
+        bcftools filter --exclude \'FILTER!="PASS"\' -O z -o {output.filter} {input}
+        bcftools norm -m-both -c w -f {params.refseq} -O z -o {output.norm} {output.filter}
+        tabix -p vcf {output.norm}
+        '''
+
+rule passfilter_ls:
+    # only variants with high quality are kept for lofreq / scalpel sample
+    input:
+        'lofreq_scalpel/{tissue}{sample}.{varcaller}.vcf.gz'
+    output:
+        'lofreq_scalpel/filtered/{tissue}{sample}.{varcaller}.vcf.gz'
+    wildcard_constraints:
+        sample = '[0-9]+',
+        tissue = '[A-Z]'
+    threads:
+        1
+    shell:
+        '''
+        bcftools filter --exclude \'FILTER!="PASS"\' -O z -o {output} {input}
+        tabix -p vcf {output}
+        '''
+
+rule norm_ls:
+    input:
+        file = 'lofreq_scalpel/filtered/{tissue}{sample}.{varcaller}.vcf.gz'
+    output:
+        'lofreq_scalpel/normalized/{tissue}{sample}.{varcaller}.vcf.gz'
+    wildcard_constraints:
+        sample = '[0-9]+',
+        tissue = '[A-Z]'
+    params:
+        refseq = refseq
+    threads: 
+        1
+    shell:
+        '''
+        bcftools norm -m-both -c w -f {params.refseq} -O z -o {output} {input.file}
+        tabix -p vcf {output}
+        '''
+
+rule gt_annotator:
+#lofreq does not contain gt column, so it needs to be added
+    input:
+        file = 'lofreq_scalpel/normalized/{tissue}{sample}.lofreq.vcf.gz'
+    output:
+        'lofreq_scalpel/normalized/{tissue}{sample}.lofreqgt.vcf.gz'
+    wildcard_constraints:
+        sample = '[0-9]+',
+        tissue = '[A-Z]'
+    threads: 
+        1
+    shell:
+        '''
+        vcf-genotype-annotator {input.file} {wildcards.tissue}{wildcards.sample} 0/1 -o {output}
+        tabix -p vcf {output}
+        '''
+
+rule merge_ls_sep:
+    input:
+        files = expand('lofreq_scalpel/normalized/{tissue}{{sample}}.{{varcaller}}.vcf.gz', tissue = TISSUE)
+    output:
+        'lofreq_scalpel/normalized/HLT{sample}.{varcaller}_w.vcf.gz'
+    wildcard_constraints:
+        sample = '[0-9]+',
+        tissue = '[A-Z]',
+        varcaller = '[a-z]+'
+    threads: 
+        1
+    shell:
+        '''
+        bcftools merge -O z --force-samples {input.files} -o {output}
+        '''
+
+
+rule reheader:
+    input:
+        'lofreq_scalpel/normalized/HLT{sample}.{varcaller}_w.vcf.gz'
+    output:
+        reheader = 'lofreq_scalpel/normalized/HLT{sample}.{varcaller}_rehead.vcf.gz',
+        norm = 'lofreq_scalpel/normalized/HLT{sample}.{varcaller}_reheadnorm.vcf.gz'
+    wildcard_constraints:
+        sample = '[0-9]+',
+        varcaller = '[a-z]+'
+    threads: 
+        1
+    params:
+        helper_scripts = helper_scripts, 
+        refseq = refseq
+    shell:
+        '''
+        bcftools reheader --samples {params.helper_scripts}/header/header_names{wildcards.sample}.txt {input} -o {output.reheader}
+        bcftools norm -m-both -c w -f {params.refseq} -O z -o {output.norm} {output.reheader}
+        '''
+
+rule sort:
+    input:
+        'lofreq_scalpel/normalized/HLT{sample}.{varcaller}_reheadnorm.vcf.gz'
+    output:
+        'lofreq_scalpel/sorted/HLT{sample}.{varcaller}.vcf.gz'
+    wildcard_constraints:
+        sample = '[0-9]+',
+        varcaller = '[a-z]+'
+    threads: 
+        1
+    shell:
+        '''
+        bcftools sort {input} -O z -o {output}
+        tabix -p vcf {output}
+        '''
+
+
+
+rule concat:
+    input:
+        files = expand('lofreq_scalpel/sorted/HLT{{sample}}.{varcaller}.vcf.gz', varcaller = ['scalpel', 'lofreqgt'])
+    output:
+        'variant_caller_out/normalized/HLT{sample}.ls.vcf.gz'
+    wildcard_constraints:
+        sample = '[0-9]+'
+    threads: 
+        1
+    shell:
+        '''
+        bcftools concat -a {input.files} -O z -o {output}
+        tabix -p vcf {output}
+        '''
+
+
+rule merge2:
+    input:
+        files = expand('variant_caller_out/normalized/HLT{{sample}}.{varcaller}.vcf.gz', varcaller = ['hc', 'mutect.clfil', 'ls']),
+        index = expand('variant_caller_out/normalized/HLT{{sample}}.{varcaller}.vcf.gz.tbi',  varcaller = ['hc', 'mutect.clfil', 'ls'])
+    output:
+        'merged/HLT{sample}_un.vcf.gz'
+    wildcard_constraints:
+        sample = '[0-9]+'
+    threads: 
+        1
+    shell:
+        '''
+        bcftools merge --regions chr1,chr10,chr11,chr12,chr13,chr14,chr15,chr16,chr17,chr18,chr19,chr2,chr3,chr4,chr5,chr6,chr7,chr8,chr9,chrX,chrY -O z -m none --force-samples {input.files} -o {output}
+        '''
+
+
+rule norm3:
+    input:
+        'merged/HLT{sample}_un.vcf.gz'
+    output:
+        norm = 'merged/HLT{sample}.vcf.gz',
+        reheader = 'merged/reheader/HLT{sample}.vcf.gz'
+    wildcard_constraints:
+        sample = '[0-9]+'
+    params:
+        helper_scripts = helper_scripts,
+        refseq = refseq
+    threads: 
+        1
+    shell:
+        '''
+        bcftools norm -m-both -c w -f {params.refseq} -O z -o {output.norm} {input}
+        bcftools reheader --samples {params.helper_scripts}/header/headernames.txt {output.norm} -o {output.reheader}
+        '''
+
+
+rule make_txt:
+    input:
+        'merged/reheader/HLT{sample}.vcf.gz'
+    output:
+        'merged/txt_files/HLT{sample}.merged.txt'
+    wildcard_constraints:
+        sample = '[0-9]+'
+    params:
+        helper_scripts = helper_scripts 
+    threads: 
+        1
+    shell:
+        '''
+        perl {params.helper_scripts}/scripts/vcf_to_AFtable.pl -in {input} -out {output} -s "AD|h_mu,l_mu,t_mu,h_hc,l_hc,t_hc" -s "GT|h_hc,l_hc,t_hc,h_mu,l_mu,t_mu,h_ls,l_ls,t_ls"
+        '''
+
+rule concat_db_entries:
+    input:
+        mgp_indel = mgp_path1,
+        mgp_snp = mgp_path2
+    output:
+        merged = 'known_variants_vcfs/mgp.v5.snps.indels.dbSNP142.pass.chr.sort.vcf.gz'
+    threads:
+        1
+    shell:
+        '''
+        bcftools concat -a {input.mgp_indel} {input.mgp_snp} -o {output.merged}
+        '''
+
+
+rule norm_db_entries1:
+    # to be able to make a comparison, db entries are normalized
+    input:
+        'known_variants_vcfs/mgp.v5.snps.indels.dbSNP142.pass.chr.sort.vcf.gz'
+    output: 
+        sort = 'known_variants_vcfs/normalized/sorted/mgp.v5.snps.indels.dbSNP142.pass.chr.sort.vcf.gz',
+        norm = 'known_variants_vcfs/normalized/mgp.v5.snps.indels.dbSNP142.pass.chr.sort.vcf.gz',
+    params:
+        refseq = refseq
+    threads:
+        1
+    shell:
+        '''
+        bcftools norm -m-both -c w -f {params.refseq} -O z -o {output.sort}
+        bcftools sort {output.sort} -O z -o {output.norm}
+        '''
+
+
+rule norm_db_entries2:
+    # to be able to make a comparison, db entries are normalized
+    input:
+        snp_path
+    output: 
+        sort = 'known_variants_vcfs/normalized/sorted/mouse.dbsnp.chr.sort.vcf.gz',
+        norm = 'known_variants_vcfs/normalized/mouse.dbsnp.chr.sort.vcf.gz'
+    params:
+        refseq = refseq
+    threads:
+        1
+    shell:
+        '''
+        bcftools norm -m-both -c w -f {params.refseq} -O z -o {output.sort}
+        bcftools sort {output.sort} -O z -o {output.norm}
+        '''
+
+
+rule det_overlap:
+    input:
+        main = 'merged/txt_files/HLT{sample}.merged.txt'
+    output:
+        mgp = 'known_variants_vcfs/overlap/{sample}_mgp_overlap.txt',
+        dbsnp = 'known_variants_vcfs/overlap/{sample}_dbsnp_overlap.txt',
+        remdup = 'merged/txt_files/HLT{sample}.merged.remdup.txt'
+    wildcard_constraints:
+        sample = '[0-9]+'
+    params:
+        opath = 'known_variants_vcfs/overlap/{sample}',
+        helper_scripts = helper_scripts,
+        snp_path = 'known_variants_vcfs/normalized/sorted/mouse.dbsnp.chr.sort.vcf.gz', 
+        mgp_path = 'known_variants_vcfs/normalized/sorted/mgp.v5.snps.indels.dbSNP142.pass.chr.sort.vcf.gz'
+    threads: 
+        1
+    shell:
+        '''
+        python3 {params.helper_scripts}/scripts/db_entry_overlap.py -s {input.main} -o {params.opath} --mgp {params.mgp_path} --dbsnp {params.snp_path}
+        '''
+
+rule create_filter_tables:
+    input:
+        remdup = 'merged/txt_files/HLT{sample}.merged.remdup.txt',
+        mgp = 'known_variants_vcfs/overlap/{sample}_mgp_overlap.txt',
+        dbsnp = 'known_variants_vcfs/overlap/{sample}_dbsnp_overlap.txt'
+    output:
+        specific = 'merged/txt_files/ad_hc_mu/HLT{sample}.specific.txt'
+    wildcard_constraints:
+        sample = '[0-9]+'
+    params:
+        helper_scripts = helper_scripts 
+    threads: 
+        1
+    shell:
+        '''
+        python3 {params.helper_scripts}/scripts/create_filter_tables.py
+        '''
+
+rule annotation:
+    #script to add genome annotation to vcf file
+    input:
+        'merged/reheader/HLT{sample}.vcf.gz'
+    output:
+        'annovar_anno/density_filter/HLT{sample}.merged.mm10_multianno.txt'
+    params:
+        helper_scripts = helper_scripts,
+        outdir = 'annovar_anno/density_filter/HLT{sample}.merged',
+        annodir = 'annovar_anno/'
+    wildcard_constraints:
+        sample = '[0-9]+'
+    shell:
+        '''
+        zcat {input} | perl {params.helper_scripts}/table_annovar.pl - {params.annodir} -buildver mm10 -out {params.outdir} -remove -protocol refGene -nastring . -operation g -vcfinput -polish
+        '''
