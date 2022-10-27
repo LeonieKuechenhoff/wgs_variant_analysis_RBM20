@@ -20,23 +20,23 @@ Script to add genome annotation to variants.
 
 ### 3. /variant_analysis
 Analysis of serveral aspects of output files from step two.
-config.py - directory settings for import statements. Most import files are created in step 2.
-a) variant_caller_venn.ipynb
+config.py - directory settings for import statements. Most import files are created in step 2.\n
+a) variant_caller_venn.ipynb\n
 Plot venn diagrams of variants called by different variant callers.
 b) tissue_spec_list.ipynb
 Write one list per tissue of tissue specific variants. Output needed for AF.ipynb & variant_surrounding.ipynb
 c) AF.ipynb
-- Plot total number of tissue specific and common variants
-- Plot allele frequency of A to G mutations
-- Plot allele frequency of on-target edits
-d) annotation.ipynb
+Plot total number of tissue specific and common variants\n
+Plot allele frequency of A to G mutations\n
+Plot allele frequency of on-target edits\n
+d) annotation.ipynb\n
 Plot how variants are annotated (intron vs. exon etc.), caluclate fraction per category, sample and tissue.
-e) SNP_type.ipynb
+e) SNP_type.ipynb\n
 Calculate fraction of SNP per sample and tissue and categorize into type of SNP, plot results.
 f) variant_surrounding.ipynb
 For each tissue specific variant, the following things will be checked:
-- Is it an A>G mutation?
-- Are there any gRNA Sequence similarities around the variant?
+Is it an A>G mutation?
+Are there any gRNA Sequence similarities around the variant?
 g) semi_global_alignment.pl
 Helper scrip that is called in variant_surrounding.ipynb. Searches for Seqeuence similarities of two sequences and
 returns number of mismatches of best match.
