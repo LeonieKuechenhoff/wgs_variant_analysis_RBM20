@@ -1,5 +1,5 @@
 # wgs_variant_analysis_RBM20
-Whole genome sequencing analysis to investigate on and off-target effects of CRISPR base-editor treatment.
+Whole genome sequencing analysis to investigate on- and off-target effects of CRISPR base-editor treatment.
 
 ## Folder structure
 ### 1. 
@@ -20,6 +20,7 @@ Script to add genome annotation to variants.
 
 ### 3. /variant_analysis
 Analysis of serveral aspects of output files from step two.
+config.py - directory settings for import statements. Most import files are created in step 2.
 a) variant_caller_venn.ipynb
 Plot venn diagrams of variants called by different variant callers.
 b) tissue_spec_list.ipynb
