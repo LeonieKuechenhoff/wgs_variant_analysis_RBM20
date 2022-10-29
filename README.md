@@ -3,19 +3,19 @@ Whole genome sequencing analysis to investigate on- and off-target effects of CR
 
 ## Folder structure
 ### 1. /variant_calling
-Pre-processing of the raw fastq files into called variants (.vcf). 
+Pre-processing of the raw fastq files into called variants (.vcf).  
 #### Steps:
 ##### 1. Install and activate conda environment
-mamba env create -p ./envs/smake -f ./envs/environment.yaml
+mamba env create -p ./envs/smake -f ./envs/environment.yaml  
 conda activate ./envs/smake
 ##### 2. Prepare input and configuration files
-inputs/input.yaml
-inputs/samples.txt
-inputs/fasta/mm10_AAV.fa.gz ### reference genome
-inputs/fasta/mm10_AAV.bed ### bed file containing chromosomal lengths required for scalpel
-inputs/vcf/*.vcf.gz ### known sites for BQSR,VQSR and lofreq
+inputs/input.yaml  
+inputs/samples.txt  
+inputs/fasta/mm10_AAV.fa.gz ### reference genome  
+inputs/fasta/mm10_AAV.bed ### bed file containing chromosomal lengths required for scalpel  
+inputs/vcf/*.vcf.gz ### known sites for BQSR,VQSR and lofreq  
 ##### 3. Run snakemake
-snakemake --profile ./profile
+snakemake --profile ./profile  
 
 ### 2. /variantfile_preparation
 Steps following variant calling. Includes snakemake workflow to normalize, filter, and merge vcf files from differnt tissues and variant callers into one txt file.   
