@@ -1,0 +1,16 @@
+
+variant_calling/inputs/fasta/mm10_AAV.fa
+variant_calling/inputs/fasta/mm10_AAV.bed
+variant_calling/inputs/fasta/mm10_AAV.dict
+variant_calling/inputs/fasta/mm10_AAV.fa.gz
+variant_calling/inputs/fasta/mm10_AAV.fa.gz.amb
+variant_calling/inputs/fasta/mm10_AAV.fa.gz.ann
+variant_calling/inputs/fasta/mm10_AAV.fa.gz.fai
+variant_calling/inputs/fasta/mm10_AAV.fa.gz.gzi
+variant_calling/inputs/fasta/mm10_AAV.fa.gz.pac
+variant_calling/inputs/vcf/mgp.v5.indels.pass.chr.sort.vcf.gz
+variant_calling/inputs/vcf/mgp.v5.indels.pass.chr.sort.vcf.gz.tbi
+variant_calling/inputs/vcf/mgp.v5.merged.snps_all.dbSNP142.pass.chr.sort.vcf.gz
+variant_calling/inputs/vcf/mouse.dbsnp.chr.sort.vcf.gz
+variant_calling/inputs/vcf/mouse.dbsnp.chr.sort.vcf.gz.tbi
+variant_calling/inputs/vcf/mgp.v5.merged.snps_all.dbSNP142.pass.chr.sort.vcf.gz.tbi
