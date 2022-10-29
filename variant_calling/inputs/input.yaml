@@ -1,0 +1,9 @@
+---
+samplesheet: 'inputs/samples.txt'
+genome: 'inputs/fasta/mm10_AAV.fa.gz'
+genome_length: 'inputs/fasta/mm10_AAV.bed'
+BQSR_known_sites: 'inputs/vcf/mouse.dbsnp.chr.sort.vcf.gz;inputs/vcf/mgp.v5.merged.snps_all.dbSNP142.pass.chr.sort.vcf.gz;inputs/vcf/mgp.v5.indels.pass.chr.sort.vcf.gz'
+VQSR_known_snps_params: '-resource:MGP,known=true,training=true,truth=true,prior=12 inputs/vcf/mgp.v5.merged.snps_all.dbSNP142.pass.chr.sort.vcf.gz;-resource:dbSNP,known=true,training=true,truth=true,prior=10 inputs/vcf/mouse.dbsnp.chr.sort.vcf.gz '
+VQSR_known_indels_params: '-resource:MGP,known=true,training=true,truth=true,prior=12 inputs/vcf/mgp.v5.indels.pass.chr.sort.vcf.gz;-resource:dbSNP,known=true,training=true,truth=true,prior=10 inputs/vcf/mouse.dbsnp.chr.sort.vcf.gz'
+tmp_dir: '/scratch/shli/wgs_pipeline'
+output_dir: '/g/steinmetz/project/dcm_WGS/wgs_variant_calling'
