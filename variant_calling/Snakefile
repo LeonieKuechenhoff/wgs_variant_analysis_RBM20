@@ -55,7 +55,8 @@ onstart:
     shell("mkdir -p jobs/bwamem")
     shell("mkdir -p jobs/sortbam")
     shell("mkdir -p jobs/markduplicate")
-    shell("mkdir -p jobs/indexbam")
+    shell("mkdir -p jobs/indexbam_result")
+    shell("mkdir -p jobs/indexbam_temp")
     shell("mkdir -p jobs/indexfasta")
     shell("mkdir -p jobs/BQSR")
     shell("mkdir -p jobs/HaplotypeCaller")
@@ -91,20 +92,10 @@ rule cutadapt:
         read1 = temp(TMPDIR + "/" + "{sample}.part{subfile,[0-9]}.r1.fastq"),
         read2 = temp(TMPDIR + "/" + "{sample}.part{subfile,[0-9]}.r2.fastq")
     threads: 8
+    params:
+        adapters = "-a AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT -A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACATCACGATCTCGTATGCCGTCTTCTGCTTG -A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACCGATGTATCTCGTATGCCGTCTTCTGCTTG -A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACTTAGGCATCTCGTATGCCGTCTTCTGCTTG -A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACTGACCAATCTCGTATGCCGTCTTCTGCTTG -A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACACAGTGATCTCGTATGCCGTCTTCTGCTTG -A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACGCCAATATCTCGTATGCCGTCTTCTGCTTG -A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACCAGATCATCTCGTATGCCGTCTTCTGCTTG -A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACACTTGAATCTCGTATGCCGTCTTCTGCTTG -A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACGATCAGATCTCGTATGCCGTCTTCTGCTTG -A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACTAGCTTATCTCGTATGCCGTCTTCTGCTTG -A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACGGCTACATCTCGTATGCCGTCTTCTGCTTG -A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACCTTGTAATCTCGTATGCCGTCTTCTGCTTG "
     shell:
-        "cutadapt -a AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT -A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACATCACGATCTCGTATGCCGTCTTCTGCTTG "
-        "-A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACCGATGTATCTCGTATGCCGTCTTCTGCTTG "
-        "-A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACTTAGGCATCTCGTATGCCGTCTTCTGCTTG "
-        "-A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACTGACCAATCTCGTATGCCGTCTTCTGCTTG "
-        "-A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACACAGTGATCTCGTATGCCGTCTTCTGCTTG "
-        "-A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACGCCAATATCTCGTATGCCGTCTTCTGCTTG "
-        "-A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACCAGATCATCTCGTATGCCGTCTTCTGCTTG "
-        "-A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACACTTGAATCTCGTATGCCGTCTTCTGCTTG "
-        "-A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACGATCAGATCTCGTATGCCGTCTTCTGCTTG "
-        "-A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACTAGCTTATCTCGTATGCCGTCTTCTGCTTG "
-        "-A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACGGCTACATCTCGTATGCCGTCTTCTGCTTG "
-        "-A AGATCGGAAGAGCACACGTCTGAACTCCAGTCACCTTGTAATCTCGTATGCCGTCTTCTGCTTG "
-        "-j {threads} -o {output.read1} -p {output.read2} -q 20 --trim-n -m 20 --max-n=0 {input.read1} {input.read2}"
+        "cutadapt {params.adapters} -j {threads} -o {output.read1} -p {output.read2} -q 20 --trim-n -m 20 --max-n=0 {input.read1} {input.read2}"
 
 rule bwamem:
     input:
@@ -114,7 +105,7 @@ rule bwamem:
         index = config["genome"] + ".bwt" 
     output:
         temp(TMPDIR + "/" + "{sample}.part{subfile,[0-9]}.bam")
-    threads: 8
+    threads: 16
     shell:
         "bwa mem -t {threads} {input.genome} -R \"@RG\\tID:{wildcards.sample}.{wildcards.subfile}\\tSM:{wildcards.sample}\\tPL:illumina\\tLB:{wildcards.sample}\\tPU:{wildcards.sample}.{wildcards.subfile}\" {input.read1} {input.read2} | samtools view -bS > {output}"
 
@@ -139,11 +130,20 @@ rule markduplicate:
     shell:
         "gatk MarkDuplicates {params} -O {output.bam} -M {output.metrics} --VALIDATION_STRINGENCY SILENT"
 
-rule indexbam:
+rule indexbam_result:
     input:
-        "{sample}.bam"
+        RESULTDIR + "/bam/" + "{sample}.bam"
     output:
-        temp("{sample}.bam.bai")
+        RESULTDIR + "/bam/" + "{sample}.bam.bai"
+    threads: 1
+    shell:
+        "samtools index {input}"
+
+rule indexbam_temp:
+    input:
+        TMPDIR + "/" + "{sample}.bam"
+    output:
+        temp(TMPDIR + "/" + "{sample}.bam.bai")
     threads: 1
     shell:
         "samtools index {input}"

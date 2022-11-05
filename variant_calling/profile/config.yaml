@@ -1,6 +1,5 @@
 ---
 snakefile: Snakefile
-cores: 1
 latency-wait: 60
 reason: True
 show-failed-logs: True
