@@ -10,4 +10,5 @@ dependencies:
   - samtools
   - gatk4=4.1.9.0  
   - lofreq=2.1.5
-  - scalpel=0.5.4
+  - scalpel
+  - bamtools=2.5.1

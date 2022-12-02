@@ -11,22 +11,31 @@ restart-times: 3
 jobname: "{rule}.{jobid}"              # Provide a custom name for the jobscript that is submitted to the cluster.
 max-jobs-per-second: 10                 #Maximal number of cluster/drmaa jobs per second, default is 10, fractions allowed.
 max-status-checks-per-second: 10       #Maximal number of job status checks per second, default is 10
-jobs: 50                              #Use at most N CPU cluster/cloud jobs in parallel.
+jobs: 200                              #Use at most N CPU cluster/cloud jobs in parallel.
 cluster: "sbatch --output=\"jobs/{rule}/slurm_%x_%j.out\" --error=\"jobs/{rule}/slurm_%x_%j.log\" --mem={resources.mem_mb} --time={resources.runtime} --cpus-per-task={threads}"
+cluster-cancel: "scancel"
 # Job resources
 set-resources:
     - cutadapt:mem_mb=20000
     - cutadapt:runtime=24:00:00
     - bwamem:mem_mb=20000
-    - bwamem:runtime=48:00:00
+    - bwamem:runtime=72:00:00
     - sortbam:mem_mb=120000
     - sortbam:runtime=48:00:00
+    - HaplotypeCaller:mem_mb=120000
+    - HaplotypeCaller:runtime=72:00:00
+    - JointGenotyping:mem_mb=120000
+    - JointGenotyping:runtime=72:00:00
+    - Mutect2:mem_mb=120000
+    - Mutect2:runtime=144:00:00
 # For some reasons time needs quotes to be read by snakemake
 default-resources:
-  - mem_mb=20000
-  - runtime="24:00:00"
+    - mem_mb=20000
+    - runtime="24:00:00"
 # Define the number of threads used by rules
 set-threads:
-  - cutadapt=8
-  - bwamem=8
-  - Lofreq=8
+    - cutadapt=8
+    - bwamem=16
+    - Lofreq=8
+    - Mutect2=8
+

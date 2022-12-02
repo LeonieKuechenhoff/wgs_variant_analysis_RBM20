@@ -67,6 +67,7 @@ onstart:
     shell("mkdir -p jobs/Scalpel")
     shell("mkdir -p jobs/Bgzip")
     shell("mkdir -p jobs/MergeVcfs")
+    shell("mkdir -p jobs/unzip")
 
 rule all:
     input:
@@ -115,8 +116,10 @@ rule sortbam:
     output:
         temp(TMPDIR + "/" + "{sample}.part{subfile,[0-9]}.sort.bam")
     threads: 1
+    params:
+        tmpdir = TMPDIR
     shell:
-        "gatk SortSam -I {input} -O {output} -SO coordinate --VALIDATION_STRINGENCY SILENT"
+        "gatk SortSam -I {input} -O {output} -SO coordinate --TMP_DIR {params.tmpdir} --VALIDATION_STRINGENCY SILENT"
 
 rule markduplicate:
     input:
@@ -126,9 +129,10 @@ rule markduplicate:
         metrics = temp(TMPDIR + "/" + "{sample}.metrics")
     threads: 1
     params:
-        lambda wildcards: " ".join(expand(" -I {inputs} ",inputs = get_bam(wildcards)))
+        input = lambda wildcards: " ".join(expand(" -I {inputs} ",inputs = get_bam(wildcards))),
+        tmpdir = TMPDIR
     shell:
-        "gatk MarkDuplicates {params} -O {output.bam} -M {output.metrics} --VALIDATION_STRINGENCY SILENT"
+        "gatk MarkDuplicates {params.input} -O {output.bam} -M {output.metrics} --TMP_DIR {params.tmpdir} --VALIDATION_STRINGENCY SILENT"
 
 rule indexbam_result:
     input:
@@ -167,8 +171,6 @@ rule BQSR:
         fai = config["genome"] + ".fai",
         dict = rchop(rchop(rchop(config["genome"],".gz"),".fasta"),".fa") + ".dict"
     output:
-        vcf = temp(TMPDIR + "/" + "{sample}.recal.vcf"),
-        idx = temp(TMPDIR + "/" + "{sample}.recal.vcf.idx"),
         table = temp(TMPDIR + "/" + "{sample}.recal.table"),
         bam = RESULTDIR + "/bam/" + "{sample}.sort.dedup.recal.bam",
         bai = RESULTDIR + "/bam/" + "{sample}.sort.dedup.recal.bai"
@@ -177,7 +179,7 @@ rule BQSR:
         " ".join(expand(" --known-sites {knownvcfs} ",knownvcfs = config['BQSR_known_sites'].split(";")))
     shell:
         "gatk BaseRecalibrator -R {input.genome} -I {input.bam} -O {output.table} {params} --use-original-qualities && "
-        "gatk ApplyBQSR --create-output-bam-md5 --add-output-sam-program-record -R {input.genome} -I {input.bam} -O {output.bam} -bqsr {output.table} --static-quantized-quals 10 --static-quantized-quals 20 --static-quantized-qual 30"
+        "gatk ApplyBQSR --create-output-bam-md5 --add-output-sam-program-record -R {input.genome} -I {input.bam} -O {output.bam} -bqsr {output.table} --static-quantized-quals 10 --static-quantized-quals 20 --static-quantized-quals 30"
 
 rule HaplotypeCaller:
     input:
@@ -237,9 +239,9 @@ rule VariantFiltration:
         "-an QD -an MQRankSum -an ReadPosRankSum -an FS -an MQ -an SOR -an DP "
         "-AS -mode SNP --max-gaussians 6 {params.snp} && "
         "gatk ApplyVQSR -V {input.vcf} -O {output.tmpvcf} --recal-file {output.indelrecal} --tranches-file {output.indeltranche} --truth-sensitivity-filter-level 99.0 "
-        "--create-output-variant-index true -mode INDEL"
+        "--create-output-variant-index true -mode INDEL -AS &&"
         "gatk ApplyVQSR -V {output.indelrecal} -O {output.vcf} --recal-file {output.snprecal} --tranches-file {output.snptranche} --truth-sensitivity-filter-level 99.7 "
-        "--create-output-variant-index true -mode SNP"
+        "--create-output-variant-index true -mode SNP -AS "
 
 rule Mutect2:
     input:
@@ -253,7 +255,7 @@ rule Mutect2:
         individual = "\d+"
     params:
         lambda wildcards: " ".join(expand("-I " + RESULTDIR + "/bam/" + "{tissue}" + wildcards.individual + ".sort.dedup.recal.bam", tissue = list(wildcards.tissues)))
-    threads: 1
+    threads: 8
     shell:
         "gatk Mutect2 -R {input.genome} {params} -O {output.raw} && "
         "gatk FilterMutectCalls -V {output.raw} -R {input.genome} -O {output.fil}"
@@ -271,11 +273,20 @@ rule Lofreq:
     shell:
         "lofreq call-parallel --pp-threads {threads} -f {input.genome} -o {output} -s {params} {input.bam}"
 
+rule unzip:
+    input:
+        gzfasta = config["genome"]
+    output:
+        fasta = temp(rchop(config["genome"],".gz"))
+    threads: 1
+    shell:
+        "gunzip -c {input.gzfasta} > {output.fasta}"
+
 rule Scalpel:
     input:
         bam = RESULTDIR + "/bam/" + "{sample}.sort.dedup.recal.bam",
         bai = RESULTDIR + "/bam/" + "{sample}.sort.dedup.recal.bam.bai",
-        genome = config["genome"]
+        genome = rchop(config["genome"],".gz")
     output:
         vcf = temp(TMPDIR + "/" + "{sample}.SC.{chr}.fil.vcf"),
         dir = temp(directory(TMPDIR + "/" + "{sample}.{chr}"))
@@ -284,6 +295,7 @@ rule Scalpel:
         window = 1000
     threads: 8
     shell:
+        "mkdir {output.dir} && "
         "scalpel-discovery --single --bam {input.bam} --ref {input.genome} --bed {wildcards.chr}:1-{params.chrlen} --window {params.window} --numprocs {threads} --dir {output.dir} && "
         "scalpel-export --single --db {output.dir}/variants.db --bed {wildcards.chr}:1-{params.chrlen} --ref {input.genome} > {output.vcf}"
 
