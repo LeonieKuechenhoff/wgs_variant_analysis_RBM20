@@ -8,6 +8,10 @@ gatk CreateSequenceDictionary -R inputs/fasta/mm10_AAV.fa.gz
 
 ### get gtf annotation ###
 wget http://hgdownload.soe.ucsc.edu/goldenPath/mm10/bigZips/genes/mm10.refGene.gtf.gz -O inputs/fasta/mm10.refGene.gtf.gz
+gunzip inputs/fasta/mm10.refGene.gtf.gz
+gtfToGenePred -genePredExt inputs/fasta/mm10.refGene.gtf inputs/fasta/mm10_refGene0.txt
+nl inputs/fasta/mm10_refGene0.txt > inputs/fasta/mm10_refGene.txt
+rm inputs/fasta/mm10_refGene0.txt
 
 ### get known SNPs ###
 wget ftp://ftp.ncbi.nih.gov/snp/organisms/archive/mouse_10090/VCF/00-All.vcf.gz -O inputs/vcf/mouse.dbsnp.vcf.gz
