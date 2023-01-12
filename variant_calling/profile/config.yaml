@@ -28,6 +28,8 @@ set-resources:
     - JointGenotyping:runtime=72:00:00
     - Mutect2:mem_mb=120000
     - Mutect2:runtime=144:00:00
+    - Lofreq:mem_mb=120000
+    - Lofreq:runtime=144:00:00
 # For some reasons time needs quotes to be read by snakemake
 default-resources:
     - mem_mb=20000

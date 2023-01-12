@@ -198,7 +198,9 @@ rule JointGenotyping:
         genome = config["genome"]
     output:
         gvcf = temp(TMPDIR + "/" + "{tissues}{individual}.HC.joint.g.vcf"),
-        vcf = temp(RESULTDIR + "/vcf/" + "{tissues}{individual}.HC.raw.vcf")
+        gvcfidx = temp(TMPDIR + "/" + "{tissues}{individual}.HC.joint.g.vcf.idx"),
+        vcf = temp(RESULTDIR + "/vcf/" + "{tissues}{individual}.HC.raw.vcf"),
+        vcfidx = temp(RESULTDIR + "/vcf/" + "{tissues}{individual}.HC.raw.vcf.idx")
     wildcard_constraints:
         tissues = "[" + "".join(TISSUES) + "]+",
         individual = "\d+"
@@ -212,18 +214,22 @@ rule JointGenotyping:
 rule VariantFiltration:
     input:
         vcf = "{sample}.HC.raw.vcf",
+        vcfidx = "{sample}.HC.raw.vcf.idx",
         genome = config["genome"],
         dict = rchop(rchop(rchop(config["genome"],".gz"),".fasta"),".fa") + ".dict"
     output:
         tmpvcf = temp("{sample}.HC.indelrecal.vcf"),
-        tmpidx = temp("{sample}.HC.indelrecal.vcf.idx"),
+        tmpvcfidx = temp("{sample}.HC.indelrecal.vcf.idx"),
         vcf = "{sample}.HC.fil.vcf",
-        idx = "{sample}.HC.fil.vcf.idx",
+        idx = temp("{sample}.HC.fil.vcf.idx"),
         tmp = temp("{sample}.tmp.sites_only.vcf"),
+        tmpidx = temp("{sample}.tmp.sites_only.vcf.idx"),
         indelrecal = temp("{sample}.indel.recal"),
+        indelrecalidx = temp("{sample}.indel.recal.idx"),
         indeltranche = temp("{sample}.indel.tranche"),
         snprecal = temp("{sample}.snp.recal"),
-        snptranche = temp("{sample}.snp.tranche"),
+        snprecalidx = temp("{sample}.snp.recal.idx"),
+        snptranche = temp("{sample}.snp.tranche")
     params:
         indel = " ".join(config['VQSR_known_indels_params'].split(";")),
         snp = " ".join(config['VQSR_known_snps_params'].split(";"))
@@ -240,7 +246,7 @@ rule VariantFiltration:
         "-AS -mode SNP --max-gaussians 6 {params.snp} && "
         "gatk ApplyVQSR -V {input.vcf} -O {output.tmpvcf} --recal-file {output.indelrecal} --tranches-file {output.indeltranche} --truth-sensitivity-filter-level 99.0 "
         "--create-output-variant-index true -mode INDEL -AS &&"
-        "gatk ApplyVQSR -V {output.indelrecal} -O {output.vcf} --recal-file {output.snprecal} --tranches-file {output.snptranche} --truth-sensitivity-filter-level 99.7 "
+        "gatk ApplyVQSR -V {output.tmpvcf} -O {output.vcf} --recal-file {output.snprecal} --tranches-file {output.snptranche} --truth-sensitivity-filter-level 99.7 "
         "--create-output-variant-index true -mode SNP -AS "
 
 rule Mutect2:
@@ -249,7 +255,11 @@ rule Mutect2:
         genome = config["genome"]
     output:
         raw = temp(RESULTDIR + "/vcf/" + "{tissues}{individual}.MT.raw.vcf"),
-        fil = RESULTDIR + "/vcf/" + "{tissues}{individual}.MT.fil.vcf"
+        fil = RESULTDIR + "/vcf/" + "{tissues}{individual}.MT.fil.vcf",
+        rawidx = temp(RESULTDIR + "/vcf/" + "{tissues}{individual}.MT.raw.vcf.idx"),
+        filidx = temp(RESULTDIR + "/vcf/" + "{tissues}{individual}.MT.fil.vcf.idx"),
+        filstat = temp(RESULTDIR + "/vcf/" + "{tissues}{individual}.MT.fil.vcf.filteringStats.tsv"),
+        rawstat = temp(RESULTDIR + "/vcf/" + "{tissues}{individual}.MT.raw.vcf.stats"),
     wildcard_constraints:
         tissues = "[" + "".join(TISSUES) + "]+",
         individual = "\d+"
