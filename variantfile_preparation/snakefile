@@ -2,38 +2,64 @@
 # Author: Leonie Küchenhoff
 # Date: Sep 01st, 2022
 # Snakemake workflow to normalize, filter, and merge vcf files from differnt tissues and variant callers into one txt file.
-# Prerequisites:
-# 1. Folder in base directory (set below) named lofreq_scalpel with lofreq / scalpel output
-# 2. Folder in base directory (set below) named variant_caller_out with mutect2 / haplotype caller output
-# 3. Folder in base directory (set below) named known_variants_vcfs with SNP / INDEL database entires (dbsnp & mgp)
-# 4. Folder in base directory (set below) named annovar_anno with genome mouse annotation (files mm10_refGene0.txt  mm10_refGeneMrna.fa  mm10_refGene.txt)
+# call conda activate ../variant_calling/envs/smake
 
 import os 
+import pandas as pd
 
 helper_scripts = str(os.getcwd())
 configfile: str(helper_scripts+ "/config/config.json")
-os.chdir(config["basedir"])
+
+print(os.getcwd())
 snp_path = config["snp_path"]
 mgp_path1 = config["mgp_path1"]
 mgp_path2 = config["mgp_path2"]
+input_dir = config["inputdir"]
 refseq = config["reference_seq"]
+annodir = os.path.dirname(refseq)
 
+#SAMPLE, VARCALLER =  map(set, glob_wildcards('{{input_dir}}/HLT{sample, [0-9]+}.{varcaller}.vcf.gz'))
+units = pd.read_table(config["samplesheet"], dtype=str).set_index(["sample"], drop=False)
+SAMPLE = units["individual"].unique().tolist()
+TISSUE = units["tissue"].unique().tolist()
 
-SAMPLE, VARCALLER =  map(set, glob_wildcards('variant_caller_out/HLT{sample, [0-9]+}.{varcaller}.vcf.gz'))
-VARCALLER_LS = set(glob_wildcards('lofreq_scalpel/{tissue, [A-Z]}{sample, [0-9]+}.{varcaller}.vcf.gz')[2])
-TISSUE = ['H', 'L', 'T']
+outdir = config["outdir"]
+os.chdir(outdir)
 
 onstart:
     print("##### Creating output subfolders #####\n") 
+    shell("mkdir -p plots")
     shell("mkdir -p lofreq_scalpel/filtered")
     shell("mkdir -p lofreq_scalpel/normalized")
+    shell("mkdir -p lofreq_scalpel/sorted")
     shell("mkdir -p variant_caller_out/normalized")
-    shell("mkdir -p merged")
     shell("mkdir -p merged/reheader")
     shell("mkdir -p merged/txt_files")
     shell("mkdir -p merged/txt_files/ad_hc_mu")
     shell("mkdir -p known_variants_vcfs/overlap")
+    shell("mkdir -p known_variants_vcfs/normalized")
     shell("mkdir -p annovar_anno/density_filter")
+    shell("mkdir -p annovar_anno/density_filter")
+    shell("mkdir -p variant_caller_out/filtered")
+    shell("mkdir -p variant_caller_out/normalized")
+    print("##### Creating log subfolders #####\n")
+    shell("mkdir -p jobs/passfilter")
+    shell("mkdir -p jobs/passfilter_ls")
+    shell("mkdir -p jobs/norm_ls")
+    shell("mkdir -p jobs/gt_annotator")
+    shell("mkdir -p jobs/merge_ls_sep")
+    shell("mkdir -p jobs/reheader")
+    shell("mkdir -p jobs/sort")
+    shell("mkdir -p jobs/concat")
+    shell("mkdir -p jobs/merge2")
+    shell("mkdir -p jobs/norm3")
+    shell("mkdir -p jobs/make_txt")
+    shell("mkdir -p jobs/det_overlap")
+    shell("mkdir -p jobs/concat_db_entries")
+    shell("mkdir -p jobs/norm_db_entries1")
+    shell("mkdir -p jobs/norm_db_entries2")
+    shell("mkdir -p jobs/create_filter_tables")
+    shell("mkdir -p jobs/annotation")
 
 rule all:
     input:
@@ -49,19 +75,21 @@ rule all:
 rule passfilter:
     # only variants with high quality are kept 
     input:
-        'variant_caller_out/HLT{sample}.{varcaller}.vcf.gz'
+        input_dir + '/vcf/HLT{sample}.{varcaller}.fil.vcf'
     output:
         filter = 'variant_caller_out/filtered/HLT{sample}.{varcaller}.vcf.gz',
         norm = 'variant_caller_out/normalized/HLT{sample}.{varcaller}.vcf.gz'
     wildcard_constraints:
-        sample = '[0-9]+'
+        sample = '[0-9]+',
+        varcaller = '[A-Z]+'
     params:
         refseq = refseq
     threads:
         1
     shell:
         '''
-        bcftools filter --exclude \'FILTER!="PASS"\' -O z -o {output.filter} {input}
+        bgzip {input} --keep
+        bcftools filter --exclude \'FILTER!="PASS"\' -O z -o {output.filter} {input}.gz
         bcftools norm -m-both -c w -f {params.refseq} -O z -o {output.norm} {output.filter}
         tabix -p vcf {output.norm}
         '''
@@ -69,28 +97,32 @@ rule passfilter:
 rule passfilter_ls:
     # only variants with high quality are kept for lofreq / scalpel sample
     input:
-        'lofreq_scalpel/{tissue}{sample}.{varcaller}.vcf.gz'
+        input_dir + '/vcf/{tissue}{sample}.{varcaller}.fil.vcf'
     output:
         'lofreq_scalpel/filtered/{tissue}{sample}.{varcaller}.vcf.gz'
     wildcard_constraints:
         sample = '[0-9]+',
-        tissue = '[A-Z]'
+        tissue = '[A-Z]',
+        varcaller = '[A-Z]+'
     threads:
         1
     shell:
         '''
-        bcftools filter --exclude \'FILTER!="PASS"\' -O z -o {output} {input}
+        bgzip {input} --keep
+        bcftools filter --exclude \'FILTER!="PASS"\' -O z -o {output} {input}.gz
         tabix -p vcf {output}
         '''
 
 rule norm_ls:
+    # normalize variant notation
     input:
         file = 'lofreq_scalpel/filtered/{tissue}{sample}.{varcaller}.vcf.gz'
     output:
         'lofreq_scalpel/normalized/{tissue}{sample}.{varcaller}.vcf.gz'
     wildcard_constraints:
         sample = '[0-9]+',
-        tissue = '[A-Z]'
+        tissue = '[A-Z]',
+        varcaller = '[A-Z]+'
     params:
         refseq = refseq
     threads: 
@@ -104,7 +136,7 @@ rule norm_ls:
 rule gt_annotator:
 #lofreq does not contain gt column, so it needs to be added
     input:
-        file = 'lofreq_scalpel/normalized/{tissue}{sample}.lofreq.vcf.gz'
+        file = 'lofreq_scalpel/normalized/{tissue}{sample}.LF.vcf.gz'
     output:
         'lofreq_scalpel/normalized/{tissue}{sample}.lofreqgt.vcf.gz'
     wildcard_constraints:
@@ -119,6 +151,7 @@ rule gt_annotator:
         '''
 
 rule merge_ls_sep:
+    # merge tissues from same mouse into one file
     input:
         files = expand('lofreq_scalpel/normalized/{tissue}{{sample}}.{{varcaller}}.vcf.gz', tissue = TISSUE)
     output:
@@ -126,7 +159,7 @@ rule merge_ls_sep:
     wildcard_constraints:
         sample = '[0-9]+',
         tissue = '[A-Z]',
-        varcaller = '[a-z]+'
+        varcaller = '[a-zA-Z]+'
     threads: 
         1
     shell:
@@ -136,6 +169,7 @@ rule merge_ls_sep:
 
 
 rule reheader:
+    # change header to sample names
     input:
         'lofreq_scalpel/normalized/HLT{sample}.{varcaller}_w.vcf.gz'
     output:
@@ -143,7 +177,7 @@ rule reheader:
         norm = 'lofreq_scalpel/normalized/HLT{sample}.{varcaller}_reheadnorm.vcf.gz'
     wildcard_constraints:
         sample = '[0-9]+',
-        varcaller = '[a-z]+'
+        varcaller = '[a-zA-Z]+'
     threads: 
         1
     params:
@@ -156,13 +190,14 @@ rule reheader:
         '''
 
 rule sort:
+    # sort variants
     input:
         'lofreq_scalpel/normalized/HLT{sample}.{varcaller}_reheadnorm.vcf.gz'
     output:
         'lofreq_scalpel/sorted/HLT{sample}.{varcaller}.vcf.gz'
     wildcard_constraints:
         sample = '[0-9]+',
-        varcaller = '[a-z]+'
+        varcaller = '[a-zA-Z]+'
     threads: 
         1
     shell:
@@ -174,10 +209,11 @@ rule sort:
 
 
 rule concat:
+    # concatenate scalpel and lofreq output as one calls only snv, the other one indels
     input:
-        files = expand('lofreq_scalpel/sorted/HLT{{sample}}.{varcaller}.vcf.gz', varcaller = ['scalpel', 'lofreqgt'])
+        files = expand('lofreq_scalpel/sorted/HLT{{sample}}.{varcaller}.vcf.gz', varcaller = ['SC', 'lofreqgt'])
     output:
-        'variant_caller_out/normalized/HLT{sample}.ls.vcf.gz'
+        'variant_caller_out/normalized/HLT{sample}.LS.vcf.gz'
     wildcard_constraints:
         sample = '[0-9]+'
     threads: 
@@ -190,9 +226,9 @@ rule concat:
 
 
 rule merge2:
+    # merge files from all variant callers
     input:
-        files = expand('variant_caller_out/normalized/HLT{{sample}}.{varcaller}.vcf.gz', varcaller = ['hc', 'mutect.clfil', 'ls']),
-        index = expand('variant_caller_out/normalized/HLT{{sample}}.{varcaller}.vcf.gz.tbi',  varcaller = ['hc', 'mutect.clfil', 'ls'])
+        files = expand('variant_caller_out/normalized/HLT{{sample}}.{varcaller}.vcf.gz', varcaller = ['HC', 'MT', 'LS']),
     output:
         'merged/HLT{sample}_un.vcf.gz'
     wildcard_constraints:
@@ -206,6 +242,7 @@ rule merge2:
 
 
 rule norm3:
+    # normalize variant notation
     input:
         'merged/HLT{sample}_un.vcf.gz'
     output:
@@ -226,6 +263,7 @@ rule norm3:
 
 
 rule make_txt:
+    # convert vcf files to txt files for easier handling with subsequent analysis
     input:
         'merged/reheader/HLT{sample}.vcf.gz'
     output:
@@ -242,6 +280,7 @@ rule make_txt:
         '''
 
 rule concat_db_entries:
+    # prepare database entries step 1: concatenate mgp entries into one file
     input:
         mgp_indel = mgp_path1,
         mgp_snp = mgp_path2
@@ -268,7 +307,7 @@ rule norm_db_entries1:
         1
     shell:
         '''
-        bcftools norm -m-both -c w -f {params.refseq} -O z -o {output.sort}
+        bcftools norm -m-both -c w -f {params.refseq} -O z -o {output.sort} {input}
         bcftools sort {output.sort} -O z -o {output.norm}
         '''
 
@@ -286,12 +325,13 @@ rule norm_db_entries2:
         1
     shell:
         '''
-        bcftools norm -m-both -c w -f {params.refseq} -O z -o {output.sort}
+        bcftools norm -m-both -c w -f {params.refseq} -O z -o {output.sort} {input}
         bcftools sort {output.sort} -O z -o {output.norm}
         '''
 
 
 rule det_overlap:
+    # determine which variants overlap with database entries
     input:
         main = 'merged/txt_files/HLT{sample}.merged.txt'
     output:
@@ -313,6 +353,7 @@ rule det_overlap:
         '''
 
 rule create_filter_tables:
+    # create txt files with filtered variants
     input:
         remdup = 'merged/txt_files/HLT{sample}.merged.remdup.txt',
         mgp = 'known_variants_vcfs/overlap/{sample}_mgp_overlap.txt',
@@ -339,10 +380,10 @@ rule annotation:
     params:
         helper_scripts = helper_scripts,
         outdir = 'annovar_anno/density_filter/HLT{sample}.merged',
-        annodir = 'annovar_anno/'
+        annodir = annodir
     wildcard_constraints:
         sample = '[0-9]+'
     shell:
         '''
-        zcat {input} | perl {params.helper_scripts}/table_annovar.pl - {params.annodir} -buildver mm10 -out {params.outdir} -remove -protocol refGene -nastring . -operation g -vcfinput -polish
+        zcat {input} | perl {params.helper_scripts}/scripts/annovar/table_annovar.pl - {params.annodir} -buildver mm10 -out {params.outdir} -remove -protocol refGene -nastring . -operation g -vcfinput -polish
         '''
