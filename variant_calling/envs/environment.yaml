@@ -12,3 +12,6 @@ dependencies:
   - lofreq=2.1.5
   - scalpel
   - bamtools=2.5.1
+  - pip
+  - pip:
+    - vatools
