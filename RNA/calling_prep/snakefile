@@ -15,7 +15,7 @@ mgp_path1 = config["mgp_path1"]
 mgp_path2 = config["mgp_path2"]
 refseq = config["reference_seq"]
 gtf = config["gtf"]
-genomedir = config["genomedir"]
+genomedir = os.path.dirname(refseq)
 genome_index = f"{genomedir}/index"
 
 KNOWNSITES = [mgp_path1,mgp_path2,snp_path]
@@ -404,8 +404,5 @@ rule annotation:
         annodir = '/g/steinmetz/shli/softwares/annovar/mousedb/'
     shell:
         '''
-        zcat {input} | perl {params.helper_scripts}/table_annovar.pl - {params.annodir} -buildver mm10 -out {params.outdir} -remove -protocol refGene -nastring . -operation g -vcfinput -polish
+        zcat {input} | perl variantfile_preparation/scripts/annovar/table_annovar.pl - {params.annodir} -buildver mm10 -out {params.outdir} -remove -protocol refGene -nastring . -operation g -vcfinput -polish
         '''
-
-
-
