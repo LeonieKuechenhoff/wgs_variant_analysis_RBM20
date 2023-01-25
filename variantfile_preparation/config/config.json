@@ -9,6 +9,9 @@
   "c_mgp_path1" : "/g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/variant_calling/inputs/vcf/mgp.v5.indels.pass.chr.sort.vcf.gz",
   "c_mgp_path2": "/g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/variant_calling/inputs/vcf/mgp.v5.merged.snps_all.dbSNP142.pass.chr.sort.vcf.gz",
   "reference_seq" : "/g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/variant_calling/inputs/fasta/mm10_AAV.fa",
+  "gtf" : "/g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/variant_calling/inputs/fasta/mm10.refGene.gtf.gz",
+  "genomedir" : "/g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/variant_calling/inputs/fasta",
   "samplesheet" : "/g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/variant_calling/inputs/samples.txt",
-  "outdir" : "/g/steinmetz/project/leonie_crispr/03_data/01_heartproject/outdir_wgs_analysis"
+  "outdir" : "/g/steinmetz/project/leonie_crispr/03_data/01_heartproject/outdir_wgs_analysis",
+  "basedir_RNA" : "/g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20"
 }
