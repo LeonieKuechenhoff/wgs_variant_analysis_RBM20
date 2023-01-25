@@ -1,0 +1,7 @@
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=2.7
+  - pysam=0.19.1
+  - platypus-variant=0.8.1.2

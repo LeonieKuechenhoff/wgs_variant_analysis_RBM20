@@ -1,0 +1,411 @@
+# Author: Leonie Küchenhoff
+# Date: Jan 03rd, 2022
+# Snakemake workflow to call variants from RNA-sequencing data. Also normalizes, filters, and merges vcf files from differnt tissues and variant callers into one txt file.
+# call conda activate ../variant_calling/envs/smake
+
+
+import os 
+import pandas as pd
+
+helper_scripts = str(os.getcwd())
+configfile: str(helper_scripts+ "/config/config.json")
+
+snp_path = config["snp_path"]
+mgp_path1 = config["mgp_path1"]
+mgp_path2 = config["mgp_path2"]
+refseq = config["reference_seq"]
+gtf = config["gtf"]
+genomedir = config["genomedir"]
+genome_index = f"{genomedir}/index"
+
+KNOWNSITES = [mgp_path1,mgp_path2,snp_path]
+
+
+samples_table = pd.read_csv("RNA/calling_prep/sample_names.csv").set_index("sample", drop=False)
+
+# seq input function definition
+def seq1_from_sample(wildcards):
+  return str(samples_table.loc[wildcards.sample, "path"] + samples_table.loc[wildcards.sample, "seq1"])
+
+# seq2 input function definition
+def seq2_from_sample(wildcards):
+  return str(samples_table.loc[wildcards.sample, "path"]+samples_table.loc[wildcards.sample, "seq2"])
+
+# bam input function definition
+def bam_from_sample(wildcards):
+  return str(samples_table.loc[wildcards.sample, "path"]+samples_table.loc[wildcards.sample, "bam"])
+
+
+VARCALLER =  ['mu.fil', 'hc']
+VARCALLER_LS = ['scalpel', 'lofreq'] 
+TISSUE = ['H', 'L']
+
+
+print(VARCALLER)
+print(VARCALLER_LS)
+print(TISSUE)
+
+SAMPLES = samples_table.index
+MOUSE = samples_table['mouse']
+CHRS = ['chr1', 'chr2', 'chr3', 'chr4',
+        'chr5', 'chr6', 'chr7', 'chr8',
+        'chr9', 'chr10', 'chr11', 'chr12','chr13',
+        'chr14', 'chr15', 'chr16', 'chr17',
+        'chr18', 'chr19', 'chrX', 'chrY', 'chrM']
+
+
+onstart:
+    print("##### Creating profile pipeline #####\n") 
+    print("\t Creating jobs output subfolders...\n")
+    shell("mkdir -p jobs/all")
+    shell("mkdir -p jobs/index_refgenome")
+    shell("mkdir -p jobs/STAR")
+    shell("mkdir -p jobs/STAR_2pass")
+    shell("mkdir -p jobs/mark_duplicates")
+    shell("mkdir -p jobs/split_n_cigar_reads")
+    shell("mkdir -p jobs/base_quality_recalibration1")
+    shell("mkdir -p jobs/analyze_covariates")
+    shell("mkdir -p jobs/haplotypecaller")
+    shell("mkdir -p jobs/combine_vcf")
+    shell("mkdir -p jobs/variant_filter")
+    shell("mkdir -p jobs/passfilter")
+    shell("mkdir -p jobs/make_txt")
+    shell("mkdir -p jobs/remove_rrna")
+    shell("mkdir -p jobs/opossum")
+    shell("mkdir -p jobs/platypus")
+    shell("mkdir -p jobs/strelka")
+    shell("mkdir -p jobs/annotaion")
+    shell("mkdir -p jobs/opossum_prep")
+    shell("mkdir -p temp")
+    shell("mkdir -p stats")
+    shell("mkdir -p recal")
+    shell("mkdir -p bams")
+    shell("mkdir -p variant_caller_out") 
+    shell("mkdir -p variant_caller_out/normalized")
+    shell("mkdir -p headers")
+    shell("mkdir -p jobs/hc_ontarget")
+
+rule all:
+    input:
+        expand('variant_caller_out/normalized/HL{mouse}.hc.vcf.gz', mouse = MOUSE),
+        expand('variant_caller_out/{sample}.ontarget.hc.vcf.gz', sample = SAMPLES)
+
+rule index_refgenome:
+    input:
+        fasta = refseq
+        gtf = gtf
+    output:
+        dir = directory(genome_index),
+        confirm = touch("mytask.done")
+    shell:
+        '''
+        echo test
+        samtools faidx {input.fasta}
+        STAR --runThreadN 20 \
+        --runMode genomeGenerate \
+        --genomeDir {output.dir} \
+        --genomeFastaFiles {input.fasta} \
+        --sjdbGTFfile {input.gtf} \
+        --sjdbOverhang 100
+        '''
+
+rule STAR:
+    input:
+        seq1 = seq1_from_sample,
+        seq2 = seq2_from_sample,
+        confirm = "mytask.done"
+    output:
+        main = 'STAR/{sample}/Aligned.sortedByCoord.out.bam',
+        sj = 'STAR/{sample}/SJ.out.tab'
+    params:
+        star = 'STAR/{sample}/',
+        genome = directory(genome_index),
+        temp = 'STAR/{sample}/temp/'
+    threads:
+        10
+    shell:
+        '''
+        STAR --runThreadN 20 \
+        --genomeDir {params.genome} \
+        --readFilesIn {input.seq1} {input.seq2}\
+        --readFilesCommand zcat \
+        --outFileNamePrefix {params.star} \
+        --outSAMtype BAM SortedByCoordinate \
+        --outSAMattributes Standard \
+        --outSAMunmapped Within \
+        --outTmpDir {params.temp}
+        '''
+
+rule STAR_2pass:
+    input:
+        seq1 = seq1_from_sample,
+        seq2 = seq2_from_sample,
+        sj = expand('STAR/{sample}/SJ.out.tab', sample = SAMPLES)
+    output:
+        main = 'STAR/{sample}/2pass/Aligned.sortedByCoord.out.bam'
+    params:
+        prefix = 'STAR/{sample}/2pass/',
+        genomedir = directory(genome_index),
+        temp = 'STAR/{sample}/2passtemp/'
+    threads:
+        10
+    shell:
+        '''
+        STAR --runThreadN 15 \
+        --genomeDir {params.genomedir} \
+        --readFilesIn {input.seq1} {input.seq2} \
+        --readFilesCommand zcat \
+        --outFileNamePrefix {params.prefix} \
+        --outSAMtype BAM SortedByCoordinate \
+        --outSAMattributes Standard \
+        --outSAMunmapped Within \
+        --sjdbFileChrStartEnd {input.sj} \
+        --outTmpDir {params.temp}
+        '''
+
+rule mark_duplicates:
+    input:
+        main = 'STAR/{sample}/2pass/Aligned.sortedByCoord.out.bam'
+    output:
+        main = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.bam',
+        index = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.bam.bai',
+        metrics = 'temp/{sample}.metrics',
+    threads:
+        2
+    shell:
+        '''
+        samtools index {input.main}
+        gatk MarkDuplicates -I {input.main} -O {output.main} -M {output.metrics} --VALIDATION_STRINGENCY SILENT
+        samtools index {output.main}
+        '''
+
+rule remove_rrna:
+    input:
+        interest = 'filter.bed',
+        bam = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.bam'
+    output:
+        main = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.filter.bam',
+        index = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.filter.bam.bai'
+    shell:
+        '''
+        samtools view -L {input.interest} -U {output.main} -o {wildcards.sample}.discard {input.bam}
+        rm {wildcards.sample}.discard
+        samtools index {output.main}
+        '''
+
+rule split_n_cigar_reads:
+    input:
+        main = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.filter.bam',
+        index = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.filter.bam.bai'
+    output:
+        main = temp('temp/{sample}.Aligned.sortedByCoord.out.dedup.split.bam'),
+        #index = temp('temp/{sample}.Aligned.sortedByCoord.out.dedup.split.bam.bai')
+    params:
+        genome = refseq
+    threads:
+        5
+    shell:
+        '''
+        gatk SplitNCigarReads -R {params.genome} -I {input.main} -O {output.main} --create-output-bam-index False
+        '''
+
+
+rule base_quality_recalibration1:
+    input:
+        main = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.split.bam',
+        #index = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.split.bam.bai'
+    output:
+        readgroup = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.split.group.bam',
+        step1 = 'recal/{sample}.recal.table',
+        step2 = 'bams/{sample}.Aligned.sortedByCoord.out.dedup.split.recal.bam',
+        index = 'bams/{sample}.Aligned.sortedByCoord.out.dedup.split.recal.bam.bai'
+    params:
+        genome = refseq,
+        knownsites0 = KNOWNSITES[0],
+        knownsites1 = KNOWNSITES[1],
+        knownsites2 = KNOWNSITES[2]
+    wildcard_constraints:
+        sample = '[0-9_a-zA-Z]+'
+    shell:
+        '''
+        samtools index {input.main}
+        gatk AddOrReplaceReadGroups I={input.main} O={output.readgroup} RGID={wildcards.sample} RGSM={wildcards.sample} RGPL=illumina RGLB={wildcards.sample} RGPU={wildcards.sample}
+        gatk BaseRecalibrator -R {params.genome} -I {output.readgroup} --known-sites {params.knownsites0} --known-sites {params.knownsites1} --known-sites {params.knownsites2} -O {output.step1} --use-original-qualities
+        gatk ApplyBQSR --create-output-bam-md5 --add-output-sam-program-record -R {params.genome} -I {output.readgroup} -O {output.step2} -bqsr {output.step1} --static-quantized-quals 10 --static-quantized-quals 20 --static-quantized-quals 30
+        samtools index {output.step2} 
+        '''
+
+rule analyze_covariates:
+    input:
+        recal = 'recal/{sample}.recal.table',
+        bam = 'bams/{sample}.Aligned.sortedByCoord.out.dedup.split.recal.bam'
+    output:
+        idxstat = 'stats/{sample}.idxstats',
+        flagstat = 'stats/{sample}.flagstats',
+        plot = 'stats/{sample}.AnalyzeCovariates.pdf'
+    shell:
+        '''
+        gatk AnalyzeCovariates -bqsr {input.recal} -plots {output.plot}
+        samtools idxstats {input.bam} > {output.idxstat}
+        samtools flagstat {input.bam} > {output.flagstat}
+        '''
+
+
+rule haplotypecaller:
+    input:
+        'bams/{sample}.Aligned.sortedByCoord.out.dedup.split.recal.bam'
+    output:
+        'variant_caller_out/{sample}.hc.vcf.gz'
+    params:
+        genome = refseq
+    wildcard_constraints:
+        sample = '[0-9_a-zA-Z]+'
+    threads: 8			
+    shell:
+        '''
+        gatk HaplotypeCaller -R {params.genome} -I {input} -O {output} -G StandardAnnotation -G StandardHCAnnotation -G AS_StandardAnnotation -dont-use-soft-clipped-bases \
+        -GQB 10 -GQB 20 -GQB 30 -GQB 40 -GQB 50 -GQB 60 -GQB 70 -GQB 80 -GQB 90 -ERC GVCF
+        '''
+
+rule platypus:
+    input:
+        opo_H = 'bams/H{mouse}.op.Aligned.sortedByCoord.out.dedup.bam',
+        opo_L = 'bams/L{mouse}.op.Aligned.sortedByCoord.out.dedup.bam'
+    output:
+        gzip = 'variant_caller_out/HL{mouse}.plat.vcf.gz'
+    params:
+        main = 'variant_caller_out/HL{mouse}.plat.vcf',
+        genome = refseq
+    conda:
+        "envs/env_p27.yaml"
+    threads: 8			
+    shell:
+        '''
+        python2 /g/steinmetz/project/leonie_crispr/02_repo/00_externalcode/02_downloads/Platypus_0.8.1/Platypus.py callVariants \
+        --bamFiles {input.opo_H},{input.opo_L} \
+        --refFile {params.genome} --filterDuplicates 0 --minMapQual 0 --minFlank 0 --maxReadLength 500 --minGoodQualBases 10 --minBaseQual 20 --nCPU 16 \
+        -o {params.main}
+        bgzip {params.main} &&
+        tabix -p vcf -f {output.gzip}
+        '''
+
+rule strelka:
+    input:
+        bam_H = 'temp/H{sample}.Aligned.sortedByCoord.out.dedup.filter.bam',
+        bam_L = 'temp/L{sample}.Aligned.sortedByCoord.out.dedup.filter.bam'
+    output:
+        gzip = 'variant_caller_out/HL{sample}.st.vcf.gz'
+    params:
+        genome = refseq,
+        rundir = 'variant_caller_out/strelka{sample}',
+        main = 'variant_caller_out/strelka{sample}/results/variants/variants.vcf.gz'
+    wildcard_constraints:
+        sample = '[0-9_a-zA-Z]+'
+    threads: 8			
+    shell:
+        '''
+        python2 /g/steinmetz/project/leonie_crispr/02_repo/00_externalcode/02_downloads/strelka-2.9.10.centos6_x86_64/bin/configureStrelkaGermlineWorkflow.py \
+        --bam {input.bam_H} \
+        --bam {input.bam_L} \
+        --referenceFasta {params.genome} \
+        --runDir {params.rundir} --rna &&
+        python2 {params.rundir}/runWorkflow.py -j 16 -m local
+        mv {params.main} {output.gzip}
+        '''
+
+    
+
+rule hc_ontarget:
+    input:
+        'bams/{sample}.Aligned.sortedByCoord.out.dedup.split.recal.bam'
+    output:
+        'variant_caller_out/{sample}.ontarget.hc.vcf.gz'
+    params:
+        genome = refseq,
+        region = 'edit_region.bed'
+    wildcard_constraints:
+        sample = '[0-9_a-zA-Z]+'
+    threads: 1	
+    shell:
+        '''
+        gatk HaplotypeCaller -R {params.genome} -I {input} -O {output} -G StandardAnnotation \
+        -G StandardHCAnnotation -G AS_StandardAnnotation -dont-use-soft-clipped-bases -GQB 10 -GQB 20 -GQB 30 -GQB 40 -GQB 50 -GQB 60 -GQB 70 -GQB 80 -GQB 90 \
+        -ERC BP_RESOLUTION -L {params.region}
+        '''
+
+rule combine_vcf:
+    input:
+        heart = 'variant_caller_out/H{mouse}.hc.vcf.gz',
+        liver = 'variant_caller_out/L{mouse}.hc.vcf.gz'
+    output:
+        comb = temp('variant_caller_out/HL{mouse}.hc.comb.vcf.gz'),
+        gen = temp('variant_caller_out/HL{mouse}.hc.raw.vcf.gz'),
+        sites_only = temp('variant_caller_out/HL{mouse}.hc.raw.sites.vcf.gz')
+    params:
+        genome = refseq
+    shell:
+        '''
+        gatk CombineGVCFs -R {params.genome} --variant {input.heart} --variant {input.liver} -G StandardAnnotation -G StandardHCAnnotation -G AS_StandardAnnotation -O {output.comb} 
+        gatk GenotypeGVCFs -R {params.genome}  -V {output.comb} -O {output.gen} -G StandardAnnotation -G StandardHCAnnotation -G AS_StandardAnnotation
+        gatk MakeSitesOnlyVcf -I {output.gen} -O {output.sites_only}
+        '''
+
+rule variant_filter:
+    input:
+        'variant_caller_out/HL{mouse}.hc.raw.vcf.gz'
+    output:
+        'variant_caller_out/HL{mouse}.hc.vcf.gz'
+    params:
+        genome = refseq
+    shell:
+        '''
+         gatk VariantFiltration \
+            --R {params.genome} \
+            --V {input} \
+            --window 35 \
+            --cluster 3 \
+            --filter-name "FS" \
+            --filter "FS > 30.0" \
+            --filter-name "QD" \
+            --filter "QD < 2.0" \
+            -O {output}
+        ''' 
+
+
+
+#Merging and normalization of vcf files
+
+rule passfilter:
+    input:
+        'variant_caller_out/HL{sample}.{varcaller}.vcf.gz'
+    output:
+        filter = 'variant_caller_out/filtered/HL{sample}.{varcaller}.vcf.gz',
+        norm = 'variant_caller_out/normalized/HL{sample}.{varcaller}.vcf.gz'
+    threads:
+        1
+    wildcard_constraints:
+        sample = '[0-9_a-zA-Z]+'
+    shell:
+        '''
+        bcftools filter --exclude \'FILTER!="PASS"\' -O z -o {output.filter} {input}
+        bcftools norm -m-both -c w -f /g/steinmetz/project/leonie_crispr/03_data/01_heartproject/reference_genome/mm10_AAV.fa -O z -o {output.norm} {output.filter}
+        tabix -p vcf {output.norm}
+        '''
+
+rule annotation:
+    #script to add genome annotation to vcf file
+    input:
+        'variant_caller_out/normalized/HL{mouse}.{varcaller}.vcf.gz'
+    output:
+        'annovar_anno/HL{mouse}.{varcaller}.mm10_multianno.txt'
+    params:
+        helper_scripts = helper_scripts,
+        outdir = 'annovar_anno/HL{mouse}.{varcaller}',
+        annodir = '/g/steinmetz/shli/softwares/annovar/mousedb/'
+    shell:
+        '''
+        zcat {input} | perl {params.helper_scripts}/table_annovar.pl - {params.annodir} -buildver mm10 -out {params.outdir} -remove -protocol refGene -nastring . -operation g -vcfinput -polish
+        '''
+
+
+
