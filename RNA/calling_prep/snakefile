@@ -2,26 +2,35 @@
 # Date: Jan 03rd, 2022
 # Snakemake workflow to call variants from RNA-sequencing data. Also normalizes, filters, and merges vcf files from differnt tissues and variant callers into one txt file.
 # call conda activate ../variant_calling/envs/smake
-
+# call with:
+# snakemake -s snakefile --profile profile --use-conda --config mutation=p635l
+# or:
+# snakemake -s snakefile --profile profile --use-conda --config mutation=r636q
 
 import os 
 import pandas as pd
 
-helper_scripts = str(os.getcwd())
-configfile: str(helper_scripts+ "/config/config.json")
+configfile: "../../variantfile_preparation/config/config.json"
 
 snp_path = config["snp_path"]
 mgp_path1 = config["mgp_path1"]
 mgp_path2 = config["mgp_path2"]
 refseq = config["reference_seq"]
 gtf = config["gtf"]
+helper_scripts = config["helper_scripts_dna"]
+helper_scripts_rna = config["helper_scripts_rna"]
+
+
 genomedir = os.path.dirname(refseq)
 genome_index = f"{genomedir}/index"
 
 KNOWNSITES = [mgp_path1,mgp_path2,snp_path]
 
-
-samples_table = pd.read_csv("RNA/calling_prep/sample_names.csv").set_index("sample", drop=False)
+mutation = config["mutation"]
+if mutation == 'r636q':
+    samples_table = pd.read_csv("sample_names_R.csv").set_index("sample", drop=False)
+elif mutation == 'p635l':
+    samples_table = pd.read_csv("sample_names.csv").set_index("sample", drop=False)
 
 # seq input function definition
 def seq1_from_sample(wildcards):
@@ -35,24 +44,16 @@ def seq2_from_sample(wildcards):
 def bam_from_sample(wildcards):
   return str(samples_table.loc[wildcards.sample, "path"]+samples_table.loc[wildcards.sample, "bam"])
 
-
-VARCALLER =  ['mu.fil', 'hc']
-VARCALLER_LS = ['scalpel', 'lofreq'] 
 TISSUE = ['H', 'L']
-
-
-print(VARCALLER)
-print(VARCALLER_LS)
 print(TISSUE)
 
 SAMPLES = samples_table.index
-MOUSE = samples_table['mouse']
+MOUSE = samples_table['mouse'].unique()
 CHRS = ['chr1', 'chr2', 'chr3', 'chr4',
         'chr5', 'chr6', 'chr7', 'chr8',
         'chr9', 'chr10', 'chr11', 'chr12','chr13',
         'chr14', 'chr15', 'chr16', 'chr17',
         'chr18', 'chr19', 'chrX', 'chrY', 'chrM']
-
 
 onstart:
     print("##### Creating profile pipeline #####\n") 
@@ -74,7 +75,7 @@ onstart:
     shell("mkdir -p jobs/opossum")
     shell("mkdir -p jobs/platypus")
     shell("mkdir -p jobs/strelka")
-    shell("mkdir -p jobs/annotaion")
+    shell("mkdir -p jobs/annotation")
     shell("mkdir -p jobs/opossum_prep")
     shell("mkdir -p temp")
     shell("mkdir -p stats")
@@ -84,15 +85,23 @@ onstart:
     shell("mkdir -p variant_caller_out/normalized")
     shell("mkdir -p headers")
     shell("mkdir -p jobs/hc_ontarget")
+    shell("mkdir -p txt_files")
+    shell("mkdir -p filtered_tables")
+    shell("mkdir -p jobs/txt_plat")
+    shell("mkdir -p jobs/txt_str")
+    shell("mkdir -p jobs/txt_hc")
+    shell("mkdir -p jobs/create_filter_tables")
 
 rule all:
     input:
         expand('variant_caller_out/normalized/HL{mouse}.hc.vcf.gz', mouse = MOUSE),
-        expand('variant_caller_out/{sample}.ontarget.hc.vcf.gz', sample = SAMPLES)
+        expand('variant_caller_out/{sample}.ontarget.hc.vcf.gz', sample = SAMPLES),
+        #'filtered_tables/HL012_nrch.specific.txt'
+        expand('filtered_tables/HL{mouse}.specific.txt', mouse = MOUSE)
 
 rule index_refgenome:
     input:
-        fasta = refseq
+        fasta = refseq,
         gtf = gtf
     output:
         dir = directory(genome_index),
@@ -192,6 +201,37 @@ rule remove_rrna:
         rm {wildcards.sample}.discard
         samtools index {output.main}
         '''
+rule opossum_prep:
+    input:
+        main = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.filter.bam'
+    output:
+        calmd = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.md.bam'
+    params:
+        genome = '/g/steinmetz/project/leonie_crispr/03_data/02_rnaseq/snakemake/genome/mm10_AAV.fa'
+    wildcard_constraints:
+        sample = '[0-9_a-zA-Z]+'
+    shell:
+        '''
+        samtools calmd -b {input.main} {params.genome} > {output.calmd} &&
+        samtools index {output.calmd}
+        '''
+
+rule opossum:
+    input:
+        main = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.md.bam'
+    output:
+        opo = 'bams/{sample}.op.Aligned.sortedByCoord.out.dedup.bam'
+    threads:
+        5
+    wildcard_constraints:
+        sample = '[0-9_a-zA-Z]+'
+    conda:
+        "envs/env_p27.yaml"
+    shell:
+        '''
+        python2 /g/steinmetz/project/leonie_crispr/02_repo/00_externalcode/02_downloads/Opossum/Opossum.py --BamFile={input.main} --OutFile={output.opo} --SoftClipsExist=True
+        '''
+
 
 rule split_n_cigar_reads:
     input:
@@ -266,7 +306,7 @@ rule haplotypecaller:
         gatk HaplotypeCaller -R {params.genome} -I {input} -O {output} -G StandardAnnotation -G StandardHCAnnotation -G AS_StandardAnnotation -dont-use-soft-clipped-bases \
         -GQB 10 -GQB 20 -GQB 30 -GQB 40 -GQB 50 -GQB 60 -GQB 70 -GQB 80 -GQB 90 -ERC GVCF
         '''
-
+        
 rule platypus:
     input:
         opo_H = 'bams/H{mouse}.op.Aligned.sortedByCoord.out.dedup.bam',
@@ -275,7 +315,7 @@ rule platypus:
         gzip = 'variant_caller_out/HL{mouse}.plat.vcf.gz'
     params:
         main = 'variant_caller_out/HL{mouse}.plat.vcf',
-        genome = refseq
+        genome = '/g/steinmetz/project/leonie_crispr/03_data/02_rnaseq/snakemake/genome/mm10_AAV.fa'
     conda:
         "envs/env_p27.yaml"
     threads: 8			
@@ -371,10 +411,7 @@ rule variant_filter:
             -O {output}
         ''' 
 
-
-
-#Merging and normalization of vcf files
-
+#filtering and normalization of vcf files
 rule passfilter:
     input:
         'variant_caller_out/HL{sample}.{varcaller}.vcf.gz'
@@ -405,4 +442,70 @@ rule annotation:
     shell:
         '''
         zcat {input} | perl variantfile_preparation/scripts/annovar/table_annovar.pl - {params.annodir} -buildver mm10 -out {params.outdir} -remove -protocol refGene -nastring . -operation g -vcfinput -polish
+        '''
+
+
+rule txt_hc:
+    #convert vcf into txt file
+    input:
+        'variant_caller_out/normalized/HL{sample}.hc.vcf.gz'
+    output:
+        'txt_files/HL{sample}.hc.txt'
+    params:
+        helper_scripts = helper_scripts
+    shell:
+        '''
+        perl {params.helper_scripts}/vcf_to_AFtable.pl \
+        -in {input} \
+        -out {output} -s "AD|H{wildcards.sample},L{wildcards.sample}" -s "GT|H{wildcards.sample},L{wildcards.sample}"
+        '''
+
+
+rule txt_plat:
+    #convert vcf into txt file
+    input:
+        'variant_caller_out/normalized/HL{sample}.plat.vcf.gz'
+    output:
+        'txt_files/HL{sample}.plat.txt'
+    params:
+        helper_scripts = helper_scripts
+    shell:
+        '''
+        perl {params.helper_scripts}/vcf_to_AFtable.pl \
+        -in {input} \
+        -out {output} \
+        -s "NV|H{wildcards.sample}.op.Aligned.sortedByCoord.out.dedup,L{wildcards.sample}.op.Aligned.sortedByCoord.out.dedup" \
+        -s "NR|H{wildcards.sample}.op.Aligned.sortedByCoord.out.dedup,L{wildcards.sample}.op.Aligned.sortedByCoord.out.dedup" \
+        -s "GT|H{wildcards.sample}.op.Aligned.sortedByCoord.out.dedup,L{wildcards.sample}.op.Aligned.sortedByCoord.out.dedup"
+        '''
+
+rule txt_str:
+    #convert vcf into txt file
+    input:
+        'variant_caller_out/normalized/HL{sample}.st.vcf.gz'
+    output:
+        'txt_files/HL{sample}.st.txt'
+    params:
+        helper_scripts = helper_scripts
+    shell:
+        '''
+        perl {params.helper_scripts}/vcf_to_AFtable.pl \
+        -in {input} \
+        -out {output} -s "AD|SAMPLE1,SAMPLE2" -s "GT|SAMPLE1,SAMPLE2"
+        '''
+
+rule create_filter_tables:
+    # create txt files with filtered variants
+    input:
+        expand('txt_files/HL{mouse}.{varcaller}.txt', mouse = MOUSE, varcaller = ['hc','st','plat'])
+    output:
+        #'filtered_tables/HL012_nrch.specific.txt',
+        expand('filtered_tables/HL{mouse}.specific.txt', mouse = MOUSE)
+    params:
+        helper_scripts = helper_scripts_rna,
+        inputdir = 'txt_files',
+        names = expand('HL{mouse}', mouse = MOUSE)
+    shell:
+        '''
+        python3 {params.helper_scripts}/create_filter_tables_HC_PL_ST.py --names {params.names} --input {params.inputdir} --output filtered_tables
         '''

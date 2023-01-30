@@ -1,0 +1,21 @@
+Config file ../../variantfile_preparation/config/config.json is extended by additional config specified via the command line.
+Building DAG of jobs...
+WorkflowError:
+InputFunctionException (rule STAR, line 149, /g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/RNA/calling_prep/snakefile):
+    Error:
+      KeyError: 'HL028_pbs_R/2pass'
+    Wildcards:
+      sample=HL028_pbs_R/2pass
+    Traceback:
+      File "/g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/RNA/calling_prep/snakefile", line 37, in seq1_from_sample
+      File "/g/steinmetz/project/leonie_crispr/03_data/02_rnaseq/dev_snake/envs/smake/lib/python3.9/site-packages/pandas/core/indexing.py", line 925, in __getitem__
+      File "/g/steinmetz/project/leonie_crispr/03_data/02_rnaseq/dev_snake/envs/smake/lib/python3.9/site-packages/pandas/core/indexing.py", line 1100, in _getitem_tuple
+      File "/g/steinmetz/project/leonie_crispr/03_data/02_rnaseq/dev_snake/envs/smake/lib/python3.9/site-packages/pandas/core/indexing.py", line 838, in _getitem_lowerdim
+      File "/g/steinmetz/project/leonie_crispr/03_data/02_rnaseq/dev_snake/envs/smake/lib/python3.9/site-packages/pandas/core/indexing.py", line 1164, in _getitem_axis
+      File "/g/steinmetz/project/leonie_crispr/03_data/02_rnaseq/dev_snake/envs/smake/lib/python3.9/site-packages/pandas/core/indexing.py", line 1113, in _get_label
+      File "/g/steinmetz/project/leonie_crispr/03_data/02_rnaseq/dev_snake/envs/smake/lib/python3.9/site-packages/pandas/core/generic.py", line 3776, in xs
+      File "/g/steinmetz/project/leonie_crispr/03_data/02_rnaseq/dev_snake/envs/smake/lib/python3.9/site-packages/pandas/core/indexes/base.py", line 3363, in get_loc
+MissingInputException: Missing input files for rule index_refgenome:
+    output: /g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/variant_calling/inputs/fasta/index, mytask.done
+    affected files:
+        /g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/variant_calling/inputs/fasta/mm10.refGene.gtf.gz
