@@ -1,0 +1,21 @@
+---
+snakefile: snakefile
+latency-wait: 60
+reason: True
+show-failed-logs: True
+keep-going: True
+printshellcmds: True
+rerun-incomplete: True
+restart-times: 3
+# Cluster submission
+jobname: "{rule}.{jobid}"              # Provide a custom name for the jobscript that is submitted to the cluster.
+max-jobs-per-second: 10                 #Maximal number of cluster/drmaa jobs per second, default is 10, fractions allowed.
+max-status-checks-per-second: 10       #Maximal number of job status checks per second, default is 10
+jobs: 200                              #Use at most N CPU cluster/cloud jobs in parallel.
+cluster: "sbatch --output=\"jobs/{rule}/slurm_%x_%j.out\" --error=\"jobs/{rule}/slurm_%x_%j.log\" --mem={resources.mem_mb} --time={resources.runtime} --cpus-per-task={threads}"
+cluster-cancel: "scancel"
+# Job resources
+default-resources:
+    - mem_mb=10000
+    - runtime="24:00:00"
+

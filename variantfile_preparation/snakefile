@@ -69,9 +69,6 @@ rule all:
         'known_variants_vcfs/normalized/sorted/mgp.v5.snps.indels.dbSNP142.pass.chr.sort.vcf.gz'
 
 
-
-
-
 rule passfilter:
     # only variants with high quality are kept 
     input:
@@ -355,11 +352,9 @@ rule det_overlap:
 rule create_filter_tables:
     # create txt files with filtered variants
     input:
-        remdup = 'merged/txt_files/HLT{sample}.merged.remdup.txt',
-        mgp = 'known_variants_vcfs/overlap/{sample}_mgp_overlap.txt',
-        dbsnp = 'known_variants_vcfs/overlap/{sample}_dbsnp_overlap.txt'
+        remdup = expand('merged/txt_files/HLT{sample}.merged.remdup.txt', sample = SAMPLE)
     output:
-        specific = 'merged/txt_files/ad_hc_mu/HLT{sample}.specific.txt'
+        specific = expand('merged/txt_files/ad_hc_mu/HLT{sample}.specific.txt', sample = SAMPLE)
     wildcard_constraints:
         sample = '[0-9]+'
     params:
