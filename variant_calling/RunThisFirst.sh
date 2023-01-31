@@ -14,6 +14,7 @@ nl inputs/fasta/mm10_refGene0.txt > inputs/fasta/mm10_refGene.txt
 rm inputs/fasta/mm10_refGene0.txt
 
 ### get known SNPs ###
+mkdir -p inputs/vcf
 wget ftp://ftp.ncbi.nih.gov/snp/organisms/archive/mouse_10090/VCF/00-All.vcf.gz -O inputs/vcf/mouse.dbsnp.vcf.gz
 zcat inputs/vcf/mouse.dbsnp.vcf.gz | head -1000 | grep "^#" | cut -f 1-8 | sed 's/ID=\([0-9]\+\),/ID=chr\1,/' | sed 's/ID=\([XY]\),/ID=chr\1,/' | sed 's/ID=MT,/ID=chrM,/' > inputs/vcf/mouse.dbsnp.chr.vcf
 zcat inputs/vcf/mouse.dbsnp.vcf.gz | grep -v "^#" | cut -f 1-8 | sed 's/^/chr/' | sed 's/chrMT/chrM/' >> inputs/vcf/mouse.dbsnp.chr.vcf
