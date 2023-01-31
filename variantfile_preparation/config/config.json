@@ -1,21 +1,16 @@
 {
-  "c_inputdir" : "/g/steinmetz/project/dcm_WGS/wgs_variant_calling",
-  "inputdir" : "/g/steinmetz/project/leonie_crispr/03_data/01_heartproject/outdir_wgs_analysis",
+  "inputdir" : "/g/steinmetz/project/dcm_WGS/wgs_variant_calling",
   "basedir" : "/g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/variantfile_preparation",
-  "snp_path" : "/g/steinmetz/project/leonie_crispr/03_data/01_heartproject/known_variants_vcfs/mouse.dbsnp.chr.sort.vcf.gz",
-  "mgp_path1" : "/g/steinmetz/project/leonie_crispr/03_data/01_heartproject/known_variants_vcfs/mgp.v5.indels.pass.chr.sort.vcf.gz",
-  "mgp_path2": "/g/steinmetz/project/leonie_crispr/03_data/01_heartproject/known_variants_vcfs/mgp.v5.merged.snps_all.dbSNP142.pass.chr.sort.vcf.gz",
-  "C_snp_path" : "/g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/variant_calling/inputs/vcf/mouse.dbsnp.chr.sort.vcf.gz",
-  "c_mgp_path1" : "/g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/variant_calling/inputs/vcf/mgp.v5.indels.pass.chr.sort.vcf.gz",
-  "c_mgp_path2": "/g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/variant_calling/inputs/vcf/mgp.v5.merged.snps_all.dbSNP142.pass.chr.sort.vcf.gz",
-  "c_reference_seq" : "/g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/variant_calling/inputs/fasta/mm10_AAV.fa",
-  "c_gtf" : "/g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/variant_calling/inputs/fasta/mm10.refGene.gtf",
-  "reference_seq" : "/g/steinmetz/project/leonie_crispr/03_data/02_rnaseq/snakemake/genome/mm10_AAV.fa",
-  "gtf" : "/g/steinmetz/project/leonie_crispr/03_data/02_rnaseq/snakemake/genome/genome.vM25.annotation.gtf",
-  "samplesheet" : "/g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/variant_calling/inputs/samples.txt",
+  "snp_path" : "variant_calling/inputs/vcf/mouse.dbsnp.chr.sort.vcf.gz",
+  "mgp_path1" : "variant_calling/inputs/vcf/mgp.v5.indels.pass.chr.sort.vcf.gz",
+  "mgp_path2": "variant_calling/inputs/vcf/mgp.v5.merged.snps_all.dbSNP142.pass.chr.sort.vcf.gz",
+  "reference_seq" : "variant_calling/inputs/fasta/mm10_AAV.fa",
+  "gtf" : "variant_calling/inputs/fasta/mm10.refGene.gtf",
+  "samplesheet" : "variant_calling/inputs/samples.txt",
   "outdir" : "/g/steinmetz/project/leonie_crispr/03_data/01_heartproject/outdir_wgs_analysis",
-  "basedir_RNA" : "/g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20",
+  "basedir_RNA" : "/g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/",
   "mutation" : "p635l",
   "helper_scripts_dna" : "variantfile_preparation/scripts/",
-  "helper_scripts_rna" : "RNA/calling_prep/scripts/"
+  "helper_scripts_rna" : "calling_prep/scripts/"
 }
+

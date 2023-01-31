@@ -1,3 +1,0 @@
-WorkflowErrorin line 13 of /g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/RNA/calling_prep/snakefile:
-Workflow defines configfile ../../config/config.json but it is not present or accessible.
-  File "/g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/RNA/calling_prep/snakefile", line 13, in <module>

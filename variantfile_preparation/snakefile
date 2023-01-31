@@ -298,6 +298,7 @@ rule norm_db_entries1:
     output: 
         sort = 'known_variants_vcfs/normalized/sorted/mgp.v5.snps.indels.dbSNP142.pass.chr.sort.vcf.gz',
         norm = 'known_variants_vcfs/normalized/mgp.v5.snps.indels.dbSNP142.pass.chr.sort.vcf.gz',
+        txt_mgp = 'known_variants_vcfs/normalized/sorted/mgp.txt'
     params:
         refseq = refseq
     threads:
@@ -306,6 +307,7 @@ rule norm_db_entries1:
         '''
         bcftools norm -m-both -c w -f {params.refseq} -O z -o {output.sort} {input}
         bcftools sort {output.sort} -O z -o {output.norm}
+        bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\n' --output {output.txt_mgp} {output.norm}
         '''
 
 
@@ -315,7 +317,8 @@ rule norm_db_entries2:
         snp_path
     output: 
         sort = 'known_variants_vcfs/normalized/sorted/mouse.dbsnp.chr.sort.vcf.gz',
-        norm = 'known_variants_vcfs/normalized/mouse.dbsnp.chr.sort.vcf.gz'
+        norm = 'known_variants_vcfs/normalized/mouse.dbsnp.chr.sort.vcf.gz',
+        txt_dbsnp = 'known_variants_vcfs/normalized/sorted/dbsnp.txt'
     params:
         refseq = refseq
     threads:
@@ -324,6 +327,7 @@ rule norm_db_entries2:
         '''
         bcftools norm -m-both -c w -f {params.refseq} -O z -o {output.sort} {input}
         bcftools sort {output.sort} -O z -o {output.norm}
+        bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\n' --output {output.txt_dbsnp} {output.norm}
         '''
 
 

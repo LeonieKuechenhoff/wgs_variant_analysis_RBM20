@@ -10,15 +10,23 @@
 import os 
 import pandas as pd
 
-configfile: "../../variantfile_preparation/config/config.json"
+configfile: "../../DNA/variantfile_preparation/config/config.json"
 
-snp_path = config["snp_path"]
-mgp_path1 = config["mgp_path1"]
-mgp_path2 = config["mgp_path2"]
-refseq = config["reference_seq"]
-gtf = config["gtf"]
-helper_scripts = config["helper_scripts_dna"]
+basedir = config["basedir_RNA"]
+snp_path = basedir + config["snp_path"]
+mgp_path1 = basedir + config["mgp_path1"]
+mgp_path2 = basedir + config["mgp_path2"]
+refseq = basedir + config["reference_seq"]
+gtf = basedir + config["gtf"]
+helper_scripts = basedir + config["helper_scripts_dna"]
 helper_scripts_rna = config["helper_scripts_rna"]
+
+# download opossum from https://github.com/BSGOxford/Opossum
+opossum_script = '/g/steinmetz/project/leonie_crispr/02_repo/00_externalcode/02_downloads/Opossum/Opossum.py'
+# download platypus from https://github.com/andyrimmer/Platypus
+plat_script = '/g/steinmetz/project/leonie_crispr/02_repo/00_externalcode/02_downloads/Platypus_0.8.1/Platypus.py'
+# download strelka from https://github.com/Illumina/strelka
+strelka_script = '/g/steinmetz/project/leonie_crispr/02_repo/00_externalcode/02_downloads/strelka-2.9.10.centos6_x86_64/bin/configureStrelkaGermlineWorkflow.py'
 
 
 genomedir = os.path.dirname(refseq)
@@ -77,26 +85,29 @@ onstart:
     shell("mkdir -p jobs/strelka")
     shell("mkdir -p jobs/annotation")
     shell("mkdir -p jobs/opossum_prep")
-    shell("mkdir -p temp")
-    shell("mkdir -p stats")
-    shell("mkdir -p recal")
-    shell("mkdir -p bams")
-    shell("mkdir -p variant_caller_out") 
-    shell("mkdir -p variant_caller_out/normalized")
-    shell("mkdir -p headers")
-    shell("mkdir -p jobs/hc_ontarget")
-    shell("mkdir -p txt_files")
-    shell("mkdir -p filtered_tables")
-    shell("mkdir -p jobs/txt_plat")
-    shell("mkdir -p jobs/txt_str")
-    shell("mkdir -p jobs/txt_hc")
-    shell("mkdir -p jobs/create_filter_tables")
+    shell("mkdir -p ../temp")
+    shell("mkdir -p ../STAR")
+    shell("mkdir -p ../stats")
+    shell("mkdir -p ../recal")
+    shell("mkdir -p ../bams")
+    shell("mkdir -p ../variant_caller_out") 
+    shell("mkdir -p ../variant_caller_out/normalized")
+    shell("mkdir -p ../headers")
+    shell("mkdir -p ../jobs/hc_ontarget")
+    shell("mkdir -p ../txt_files")
+    shell("mkdir -p ../filtered_tables")
+    shell("mkdir -p ../jobs/txt_plat")
+    shell("mkdir -p ../jobs/txt_str")
+    shell("mkdir -p ../jobs/txt_hc")
+    shell("mkdir -p ../jobs/create_filter_tables")
+    shell("mkdir -p ../tissue_spec_vars")
+    shell("mkdir -p ../offinder")
+    shell("mkdir -p ../plots")
 
 rule all:
     input:
         expand('variant_caller_out/normalized/HL{mouse}.hc.vcf.gz', mouse = MOUSE),
         expand('variant_caller_out/{sample}.ontarget.hc.vcf.gz', sample = SAMPLES),
-        #'filtered_tables/HL012_nrch.specific.txt'
         expand('filtered_tables/HL{mouse}.specific.txt', mouse = MOUSE)
 
 rule index_refgenome:
@@ -124,12 +135,12 @@ rule STAR:
         seq2 = seq2_from_sample,
         confirm = "mytask.done"
     output:
-        main = 'STAR/{sample}/Aligned.sortedByCoord.out.bam',
-        sj = 'STAR/{sample}/SJ.out.tab'
+        main = '../STAR/{sample}/Aligned.sortedByCoord.out.bam',
+        sj = '../STAR/{sample}/SJ.out.tab'
     params:
-        star = 'STAR/{sample}/',
+        star = '../STAR/{sample}/',
         genome = directory(genome_index),
-        temp = 'STAR/{sample}/temp/'
+        temp = '../STAR/{sample}/temp/'
     threads:
         10
     shell:
@@ -149,13 +160,13 @@ rule STAR_2pass:
     input:
         seq1 = seq1_from_sample,
         seq2 = seq2_from_sample,
-        sj = expand('STAR/{sample}/SJ.out.tab', sample = SAMPLES)
+        sj = expand('../STAR/{sample}/SJ.out.tab', sample = SAMPLES)
     output:
-        main = 'STAR/{sample}/2pass/Aligned.sortedByCoord.out.bam'
+        main = '../STAR/{sample}/2pass/Aligned.sortedByCoord.out.bam'
     params:
-        prefix = 'STAR/{sample}/2pass/',
+        prefix = '../STAR/{sample}/2pass/',
         genomedir = directory(genome_index),
-        temp = 'STAR/{sample}/2passtemp/'
+        temp = '../STAR/{sample}/2passtemp/'
     threads:
         10
     shell:
@@ -174,11 +185,11 @@ rule STAR_2pass:
 
 rule mark_duplicates:
     input:
-        main = 'STAR/{sample}/2pass/Aligned.sortedByCoord.out.bam'
+        main = '../STAR/{sample}/2pass/Aligned.sortedByCoord.out.bam'
     output:
-        main = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.bam',
-        index = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.bam.bai',
-        metrics = 'temp/{sample}.metrics',
+        main = '../temp/{sample}.Aligned.sortedByCoord.out.dedup.bam',
+        index = '../temp/{sample}.Aligned.sortedByCoord.out.dedup.bam.bai',
+        metrics = '../temp/{sample}.metrics',
     threads:
         2
     shell:
@@ -191,10 +202,10 @@ rule mark_duplicates:
 rule remove_rrna:
     input:
         interest = 'filter.bed',
-        bam = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.bam'
+        bam = '../temp/{sample}.Aligned.sortedByCoord.out.dedup.bam'
     output:
-        main = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.filter.bam',
-        index = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.filter.bam.bai'
+        main = '../temp/{sample}.Aligned.sortedByCoord.out.dedup.filter.bam',
+        index = '../temp/{sample}.Aligned.sortedByCoord.out.dedup.filter.bam.bai'
     shell:
         '''
         samtools view -L {input.interest} -U {output.main} -o {wildcards.sample}.discard {input.bam}
@@ -203,11 +214,11 @@ rule remove_rrna:
         '''
 rule opossum_prep:
     input:
-        main = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.filter.bam'
+        main = '../temp/{sample}.Aligned.sortedByCoord.out.dedup.filter.bam'
     output:
-        calmd = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.md.bam'
+        calmd = '../temp/{sample}.Aligned.sortedByCoord.out.dedup.md.bam'
     params:
-        genome = '/g/steinmetz/project/leonie_crispr/03_data/02_rnaseq/snakemake/genome/mm10_AAV.fa'
+        genome = refseq
     wildcard_constraints:
         sample = '[0-9_a-zA-Z]+'
     shell:
@@ -218,9 +229,11 @@ rule opossum_prep:
 
 rule opossum:
     input:
-        main = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.md.bam'
+        main = '../temp/{sample}.Aligned.sortedByCoord.out.dedup.md.bam'
     output:
-        opo = 'bams/{sample}.op.Aligned.sortedByCoord.out.dedup.bam'
+        opo = '../bams/{sample}.op.Aligned.sortedByCoord.out.dedup.bam'
+    params:
+        opossum_script = opossum_script
     threads:
         5
     wildcard_constraints:
@@ -229,17 +242,16 @@ rule opossum:
         "envs/env_p27.yaml"
     shell:
         '''
-        python2 /g/steinmetz/project/leonie_crispr/02_repo/00_externalcode/02_downloads/Opossum/Opossum.py --BamFile={input.main} --OutFile={output.opo} --SoftClipsExist=True
+        python2 {params.opossum_script} --BamFile={input.main} --OutFile={output.opo} --SoftClipsExist=True
         '''
 
 
 rule split_n_cigar_reads:
     input:
-        main = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.filter.bam',
-        index = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.filter.bam.bai'
+        main = '../temp/{sample}.Aligned.sortedByCoord.out.dedup.filter.bam',
+        index = '../temp/{sample}.Aligned.sortedByCoord.out.dedup.filter.bam.bai'
     output:
-        main = temp('temp/{sample}.Aligned.sortedByCoord.out.dedup.split.bam'),
-        #index = temp('temp/{sample}.Aligned.sortedByCoord.out.dedup.split.bam.bai')
+        main = temp('../temp/{sample}.Aligned.sortedByCoord.out.dedup.split.bam')
     params:
         genome = refseq
     threads:
@@ -252,13 +264,12 @@ rule split_n_cigar_reads:
 
 rule base_quality_recalibration1:
     input:
-        main = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.split.bam',
-        #index = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.split.bam.bai'
+        main = '../temp/{sample}.Aligned.sortedByCoord.out.dedup.split.bam'
     output:
-        readgroup = 'temp/{sample}.Aligned.sortedByCoord.out.dedup.split.group.bam',
-        step1 = 'recal/{sample}.recal.table',
-        step2 = 'bams/{sample}.Aligned.sortedByCoord.out.dedup.split.recal.bam',
-        index = 'bams/{sample}.Aligned.sortedByCoord.out.dedup.split.recal.bam.bai'
+        readgroup = '../temp/{sample}.Aligned.sortedByCoord.out.dedup.split.group.bam',
+        step1 = '../recal/{sample}.recal.table',
+        step2 = '../bams/{sample}.Aligned.sortedByCoord.out.dedup.split.recal.bam',
+        index = '../bams/{sample}.Aligned.sortedByCoord.out.dedup.split.recal.bam.bai'
     params:
         genome = refseq,
         knownsites0 = KNOWNSITES[0],
@@ -277,11 +288,11 @@ rule base_quality_recalibration1:
 
 rule analyze_covariates:
     input:
-        recal = 'recal/{sample}.recal.table',
-        bam = 'bams/{sample}.Aligned.sortedByCoord.out.dedup.split.recal.bam'
+        recal = '../recal/{sample}.recal.table',
+        bam = '../bams/{sample}.Aligned.sortedByCoord.out.dedup.split.recal.bam'
     output:
-        idxstat = 'stats/{sample}.idxstats',
-        flagstat = 'stats/{sample}.flagstats',
+        idxstat = '../stats/{sample}.idxstats',
+        flagstat = '../stats/{sample}.flagstats',
         plot = 'stats/{sample}.AnalyzeCovariates.pdf'
     shell:
         '''
@@ -293,9 +304,9 @@ rule analyze_covariates:
 
 rule haplotypecaller:
     input:
-        'bams/{sample}.Aligned.sortedByCoord.out.dedup.split.recal.bam'
+        '../bams/{sample}.Aligned.sortedByCoord.out.dedup.split.recal.bam'
     output:
-        'variant_caller_out/{sample}.hc.vcf.gz'
+        '../variant_caller_out/{sample}.hc.vcf.gz'
     params:
         genome = refseq
     wildcard_constraints:
@@ -309,19 +320,20 @@ rule haplotypecaller:
         
 rule platypus:
     input:
-        opo_H = 'bams/H{mouse}.op.Aligned.sortedByCoord.out.dedup.bam',
-        opo_L = 'bams/L{mouse}.op.Aligned.sortedByCoord.out.dedup.bam'
+        opo_H = '../bams/H{mouse}.op.Aligned.sortedByCoord.out.dedup.bam',
+        opo_L = '../bams/L{mouse}.op.Aligned.sortedByCoord.out.dedup.bam'
     output:
-        gzip = 'variant_caller_out/HL{mouse}.plat.vcf.gz'
+        gzip = '../variant_caller_out/HL{mouse}.plat.vcf.gz'
     params:
-        main = 'variant_caller_out/HL{mouse}.plat.vcf',
-        genome = '/g/steinmetz/project/leonie_crispr/03_data/02_rnaseq/snakemake/genome/mm10_AAV.fa'
+        main = '../variant_caller_out/HL{mouse}.plat.vcf',
+        genome = refseq,
+        plat_script = plat_script
     conda:
         "envs/env_p27.yaml"
     threads: 8			
     shell:
         '''
-        python2 /g/steinmetz/project/leonie_crispr/02_repo/00_externalcode/02_downloads/Platypus_0.8.1/Platypus.py callVariants \
+        python2 {params.plat_script} callVariants \
         --bamFiles {input.opo_H},{input.opo_L} \
         --refFile {params.genome} --filterDuplicates 0 --minMapQual 0 --minFlank 0 --maxReadLength 500 --minGoodQualBases 10 --minBaseQual 20 --nCPU 16 \
         -o {params.main}
@@ -331,20 +343,21 @@ rule platypus:
 
 rule strelka:
     input:
-        bam_H = 'temp/H{sample}.Aligned.sortedByCoord.out.dedup.filter.bam',
-        bam_L = 'temp/L{sample}.Aligned.sortedByCoord.out.dedup.filter.bam'
+        bam_H = '../temp/H{sample}.Aligned.sortedByCoord.out.dedup.filter.bam',
+        bam_L = '../temp/L{sample}.Aligned.sortedByCoord.out.dedup.filter.bam'
     output:
-        gzip = 'variant_caller_out/HL{sample}.st.vcf.gz'
+        gzip = '../variant_caller_out/HL{sample}.st.vcf.gz'
     params:
         genome = refseq,
-        rundir = 'variant_caller_out/strelka{sample}',
-        main = 'variant_caller_out/strelka{sample}/results/variants/variants.vcf.gz'
+        rundir = '../variant_caller_out/strelka{sample}',
+        main = '../variant_caller_out/strelka{sample}/results/variants/variants.vcf.gz',
+        strelka_script = strelka_script
     wildcard_constraints:
         sample = '[0-9_a-zA-Z]+'
     threads: 8			
     shell:
         '''
-        python2 /g/steinmetz/project/leonie_crispr/02_repo/00_externalcode/02_downloads/strelka-2.9.10.centos6_x86_64/bin/configureStrelkaGermlineWorkflow.py \
+        python2 {params.strelka_script} \
         --bam {input.bam_H} \
         --bam {input.bam_L} \
         --referenceFasta {params.genome} \
@@ -357,9 +370,9 @@ rule strelka:
 
 rule hc_ontarget:
     input:
-        'bams/{sample}.Aligned.sortedByCoord.out.dedup.split.recal.bam'
+        '../bams/{sample}.Aligned.sortedByCoord.out.dedup.split.recal.bam'
     output:
-        'variant_caller_out/{sample}.ontarget.hc.vcf.gz'
+        '../variant_caller_out/{sample}.ontarget.hc.vcf.gz'
     params:
         genome = refseq,
         region = 'edit_region.bed'
@@ -375,12 +388,12 @@ rule hc_ontarget:
 
 rule combine_vcf:
     input:
-        heart = 'variant_caller_out/H{mouse}.hc.vcf.gz',
-        liver = 'variant_caller_out/L{mouse}.hc.vcf.gz'
+        heart = '../variant_caller_out/H{mouse}.hc.vcf.gz',
+        liver = '../variant_caller_out/L{mouse}.hc.vcf.gz'
     output:
-        comb = temp('variant_caller_out/HL{mouse}.hc.comb.vcf.gz'),
-        gen = temp('variant_caller_out/HL{mouse}.hc.raw.vcf.gz'),
-        sites_only = temp('variant_caller_out/HL{mouse}.hc.raw.sites.vcf.gz')
+        comb = temp('../variant_caller_out/HL{mouse}.hc.comb.vcf.gz'),
+        gen = temp('../variant_caller_out/HL{mouse}.hc.raw.vcf.gz'),
+        sites_only = temp('../variant_caller_out/HL{mouse}.hc.raw.sites.vcf.gz')
     params:
         genome = refseq
     shell:
@@ -392,9 +405,9 @@ rule combine_vcf:
 
 rule variant_filter:
     input:
-        'variant_caller_out/HL{mouse}.hc.raw.vcf.gz'
+        '../variant_caller_out/HL{mouse}.hc.raw.vcf.gz'
     output:
-        'variant_caller_out/HL{mouse}.hc.vcf.gz'
+        '../variant_caller_out/HL{mouse}.hc.vcf.gz'
     params:
         genome = refseq
     shell:
@@ -414,43 +427,45 @@ rule variant_filter:
 #filtering and normalization of vcf files
 rule passfilter:
     input:
-        'variant_caller_out/HL{sample}.{varcaller}.vcf.gz'
+        '../variant_caller_out/HL{sample}.{varcaller}.vcf.gz'
     output:
-        filter = 'variant_caller_out/filtered/HL{sample}.{varcaller}.vcf.gz',
-        norm = 'variant_caller_out/normalized/HL{sample}.{varcaller}.vcf.gz'
+        filter = '../variant_caller_out/filtered/HL{sample}.{varcaller}.vcf.gz',
+        norm = '../variant_caller_out/normalized/HL{sample}.{varcaller}.vcf.gz'
     threads:
         1
     wildcard_constraints:
         sample = '[0-9_a-zA-Z]+'
+    params:
+        refseq = refseq
     shell:
         '''
         bcftools filter --exclude \'FILTER!="PASS"\' -O z -o {output.filter} {input}
-        bcftools norm -m-both -c w -f /g/steinmetz/project/leonie_crispr/03_data/01_heartproject/reference_genome/mm10_AAV.fa -O z -o {output.norm} {output.filter}
+        bcftools norm -m-both -c w -f {params.refseq} -O z -o {output.norm} {output.filter}
         tabix -p vcf {output.norm}
         '''
 
 rule annotation:
     #script to add genome annotation to vcf file
     input:
-        'variant_caller_out/normalized/HL{mouse}.{varcaller}.vcf.gz'
+        '../variant_caller_out/normalized/HL{mouse}.{varcaller}.vcf.gz'
     output:
-        'annovar_anno/HL{mouse}.{varcaller}.mm10_multianno.txt'
+        '../annovar_anno/HL{mouse}.{varcaller}.mm10_multianno.txt'
     params:
         helper_scripts = helper_scripts,
-        outdir = 'annovar_anno/HL{mouse}.{varcaller}',
-        annodir = '/g/steinmetz/shli/softwares/annovar/mousedb/'
+        outdir = '../annovar_anno/HL{mouse}.{varcaller}',
+        annodir = genomedir
     shell:
         '''
-        zcat {input} | perl variantfile_preparation/scripts/annovar/table_annovar.pl - {params.annodir} -buildver mm10 -out {params.outdir} -remove -protocol refGene -nastring . -operation g -vcfinput -polish
+        zcat {input} | perl {params.helper_scripts}/annovar/table_annovar.pl - {params.annodir} -buildver mm10 -out {params.outdir} -remove -protocol refGene -nastring . -operation g -vcfinput -polish
         '''
 
 
 rule txt_hc:
     #convert vcf into txt file
     input:
-        'variant_caller_out/normalized/HL{sample}.hc.vcf.gz'
+        '../variant_caller_out/normalized/HL{sample}.hc.vcf.gz'
     output:
-        'txt_files/HL{sample}.hc.txt'
+        '../txt_files/HL{sample}.hc.txt'
     params:
         helper_scripts = helper_scripts
     shell:
@@ -464,9 +479,9 @@ rule txt_hc:
 rule txt_plat:
     #convert vcf into txt file
     input:
-        'variant_caller_out/normalized/HL{sample}.plat.vcf.gz'
+        '../variant_caller_out/normalized/HL{sample}.plat.vcf.gz'
     output:
-        'txt_files/HL{sample}.plat.txt'
+        '../txt_files/HL{sample}.plat.txt'
     params:
         helper_scripts = helper_scripts
     shell:
@@ -482,9 +497,9 @@ rule txt_plat:
 rule txt_str:
     #convert vcf into txt file
     input:
-        'variant_caller_out/normalized/HL{sample}.st.vcf.gz'
+        '../variant_caller_out/normalized/HL{sample}.st.vcf.gz'
     output:
-        'txt_files/HL{sample}.st.txt'
+        '../txt_files/HL{sample}.st.txt'
     params:
         helper_scripts = helper_scripts
     shell:
@@ -497,15 +512,14 @@ rule txt_str:
 rule create_filter_tables:
     # create txt files with filtered variants
     input:
-        expand('txt_files/HL{mouse}.{varcaller}.txt', mouse = MOUSE, varcaller = ['hc','st','plat'])
+        expand('../txt_files/HL{mouse}.{varcaller}.txt', mouse = MOUSE, varcaller = ['hc','st','plat'])
     output:
-        #'filtered_tables/HL012_nrch.specific.txt',
-        expand('filtered_tables/HL{mouse}.specific.txt', mouse = MOUSE)
+        expand('../filtered_tables/HL{mouse}.specific.txt', mouse = MOUSE)
     params:
         helper_scripts = helper_scripts_rna,
-        inputdir = 'txt_files',
+        inputdir = '../txt_files',
         names = expand('HL{mouse}', mouse = MOUSE)
     shell:
         '''
-        python3 {params.helper_scripts}/create_filter_tables_HC_PL_ST.py --names {params.names} --input {params.inputdir} --output filtered_tables
+        python3 {params.helper_scripts}/create_filter_tables_HC_PL_ST.py --names {params.names} --input {params.inputdir} --output filtered_tables --dbsnp ../../DNA/variantfile_preparation/known_variants_vcfs/normalized/sorted/dbsnp.txt --mgp ../../DNA/variantfile_preparation/known_variants_vcfs/normalized/sorted/mgp.txt
         '''

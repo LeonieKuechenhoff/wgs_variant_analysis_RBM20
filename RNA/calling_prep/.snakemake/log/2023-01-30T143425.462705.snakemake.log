@@ -1,9 +1,0 @@
-Config file ../../variantfile_preparation/config/config.json is extended by additional config specified via the command line.
-Building DAG of jobs...
-MissingInputException in rule platypus in line 279 of /g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/RNA/calling_prep/snakefile:
-Missing input files for rule platypus:
-    output: variant_caller_out/HL028_pbs_R.plat.vcf.gz
-    wildcards: mouse=028_pbs_R
-    affected files:
-        bams/L028_pbs_R.op.Aligned.sortedByCoord.out.dedup.bam
-        bams/H028_pbs_R.op.Aligned.sortedByCoord.out.dedup.bam
