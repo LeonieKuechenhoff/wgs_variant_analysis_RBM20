@@ -11,6 +11,9 @@
   "basedir_RNA" : "/g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/",
   "mutation" : "p635l",
   "helper_scripts_dna" : "variantfile_preparation/scripts/",
-  "helper_scripts_rna" : "calling_prep/scripts/"
+  "helper_scripts_rna" : "calling_prep/scripts/",
+  "opossum_script" : "/g/steinmetz/project/leonie_crispr/02_repo/00_externalcode/02_downloads/Opossum/Opossum.py",
+  "plat_script" : "/g/steinmetz/project/leonie_crispr/02_repo/00_externalcode/02_downloads/Platypus_0.8.1/Platypus.py",
+  "strelka_script" : "/g/steinmetz/project/leonie_crispr/02_repo/00_externalcode/02_downloads/strelka-2.9.10.centos6_x86_64/bin/configureStrelkaGermlineWorkflow.py"
 }
 

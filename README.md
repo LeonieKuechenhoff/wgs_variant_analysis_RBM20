@@ -65,7 +65,16 @@ Can be run from the same environment as the DNA variant calling part. However ce
 mamba env create -p ./env/smakep27 -f ./env/env_p27.yml  
 The pipeline is run from the same evironment as the DNA pipeline. The p27 environment will be called withing the snakemake pipeline. Therefore, run:  
 conda activate ../../DNA/variant_calling/env/smake
-##### 2. Run the snakemake pipeline
+##### 2. Clone and follow installation instrictions from the following git repositories:
+ - opossum from https://github.com/BSGOxford/Opossum  
+Add file location to ../../variantfile_preparation/config/config.json  
+ - platypus from https://github.com/andyrimmer/Platypus  
+Add file location to ../../variantfile_preparation/config/config.json  
+ - strelka from https://github.com/Illumina/strelka  
+Add file location to ../../variantfile_preparation/config/config.json  
+
+
+##### 3. Run the snakemake pipeline
 If all samples with the P635L mutation should be run, call:  
 snakemake -s snakefile --profile profile --use-conda --config mutation=p635l  
 If all samples with the R636Q mutation should be run, call:  
