@@ -11,15 +11,16 @@ helper_scripts = str(os.getcwd())
 configfile: str(helper_scripts+ "/config/config.json")
 
 print(os.getcwd())
-snp_path = config["snp_path"]
-mgp_path1 = config["mgp_path1"]
-mgp_path2 = config["mgp_path2"]
+basedir = config["basedir"]
+snp_path = basedir +config["snp_path"]
+mgp_path1 = basedir +config["mgp_path1"]
+mgp_path2 = basedir +config["mgp_path2"]
 input_dir = config["inputdir"]
-refseq = config["reference_seq"]
+refseq = basedir +config["reference_seq"]
 annodir = os.path.dirname(refseq)
 
 #SAMPLE, VARCALLER =  map(set, glob_wildcards('{{input_dir}}/HLT{sample, [0-9]+}.{varcaller}.vcf.gz'))
-units = pd.read_table(config["samplesheet"], dtype=str).set_index(["sample"], drop=False)
+units = pd.read_table(basedir + config["samplesheet"], dtype=str).set_index(["sample"], drop=False)
 SAMPLE = units["individual"].unique().tolist()
 TISSUE = units["tissue"].unique().tolist()
 

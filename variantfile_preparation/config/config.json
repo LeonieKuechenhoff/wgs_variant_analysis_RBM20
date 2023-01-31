@@ -1,6 +1,6 @@
 {
   "inputdir" : "/g/steinmetz/project/dcm_WGS/wgs_variant_calling",
-  "basedir" : "/g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/variantfile_preparation",
+  "basedir" : "/g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/",
   "snp_path" : "variant_calling/inputs/vcf/mouse.dbsnp.chr.sort.vcf.gz",
   "mgp_path1" : "variant_calling/inputs/vcf/mgp.v5.indels.pass.chr.sort.vcf.gz",
   "mgp_path2": "variant_calling/inputs/vcf/mgp.v5.merged.snps_all.dbSNP142.pass.chr.sort.vcf.gz",

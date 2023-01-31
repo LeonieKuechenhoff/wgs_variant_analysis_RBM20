@@ -10,7 +10,7 @@
 import os 
 import pandas as pd
 
-configfile: "../../DNA/variantfile_preparation/config/config.json"
+configfile: "../../variantfile_preparation/config/config.json"
 
 basedir = config["basedir_RNA"]
 snp_path = basedir + config["snp_path"]
@@ -106,9 +106,9 @@ onstart:
 
 rule all:
     input:
-        expand('variant_caller_out/normalized/HL{mouse}.hc.vcf.gz', mouse = MOUSE),
-        expand('variant_caller_out/{sample}.ontarget.hc.vcf.gz', sample = SAMPLES),
-        expand('filtered_tables/HL{mouse}.specific.txt', mouse = MOUSE)
+        expand('../variant_caller_out/normalized/HL{mouse}.hc.vcf.gz', mouse = MOUSE),
+        expand('../variant_caller_out/{sample}.ontarget.hc.vcf.gz', sample = SAMPLES),
+        expand('../filtered_tables/HL{mouse}.specific.txt', mouse = MOUSE)
 
 rule index_refgenome:
     input:

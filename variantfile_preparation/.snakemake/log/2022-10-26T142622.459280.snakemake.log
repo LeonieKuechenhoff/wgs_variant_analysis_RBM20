@@ -1,5 +1,0 @@
-Building DAG of jobs...
-MissingInputException in line 48 of /g/steinmetz/project/leonie_crispr/05_publish/00_wgs_code/wgs_variant_analysis_RBM20/variantfile_preparation/snakefile:
-Missing input files for rule concat_db_entries:
-/g/steinmetz/project/leonie_crispr/03_data/01_heartproject/known_varaints_vcf/mgp.v5.merged.snps_all.dbSNP142.pass.chr.sort.vcf.gz
-/g/steinmetz/project/leonie_crispr/03_data/01_heartproject/known_varaints_vcf/mgp.v5.indels.pass.chr.sort.vcf.gz

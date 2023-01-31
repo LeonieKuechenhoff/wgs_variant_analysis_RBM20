@@ -13,5 +13,7 @@ dependencies:
   - scalpel
   - bamtools=2.5.1
   - pip
+  - pysam=0.19.1
+  - mamba=1.2.0
   - pip:
     - vatools

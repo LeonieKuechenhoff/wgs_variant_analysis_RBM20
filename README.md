@@ -62,9 +62,9 @@ config.py - directory settings for import statements. Most import files are crea
 Pre-processing of the raw fastq files into variant files (.vcf). Also includes some steps following variant calling, such as filtering, normalization and merging them into a common txt file.
 Can be run from the same environment as the DNA variant calling part. However certain rules of the snakemake pipeline require python 2.7, which is run from a separate environment. 
 ##### 1. Install python 2.7 conda environment. 
-mamba env create -p ./envs/smakep27 -f ./envs/env_p27.yml  
+mamba env create -p ./env/smakep27 -f ./env/env_p27.yml  
 The pipeline is run from the same evironment as the DNA pipeline. The p27 environment will be called withing the snakemake pipeline. Therefore, run:  
-conda activate ../DNA/variant_calling/envs/smake
+conda activate ../../DNA/variant_calling/env/smake
 ##### 2. Run the snakemake pipeline
 If all samples with the P635L mutation should be run, call:  
 snakemake -s snakefile --profile profile --use-conda --config mutation=p635l  
