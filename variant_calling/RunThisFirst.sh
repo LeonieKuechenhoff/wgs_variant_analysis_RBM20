@@ -3,7 +3,7 @@
 wget http://hgdownload.soe.ucsc.edu/goldenPath/mm10/bigZips/mm10.fa.gz -O inputs/fasta/mm10.fa.gz
 ### combine mm10 reference with AAV plasmid sequence ###
 zcat inputs/fasta/mm10.fa.gz inputs/fasta/AAV_ref.fa.gz > inputs/fasta/mm10_AAV.fa
-bgzip inputs/fasta/mm10_AAV.fa
+bgzip -c inputs/fasta/mm10_AAV.fa > inputs/fasta/mm10_AAV.fa.gz
 gatk CreateSequenceDictionary -R inputs/fasta/mm10_AAV.fa.gz
 
 ### get gtf annotation ###
@@ -11,7 +11,9 @@ wget http://hgdownload.soe.ucsc.edu/goldenPath/mm10/bigZips/genes/mm10.refGene.g
 gunzip inputs/fasta/mm10.refGene.gtf.gz
 gtfToGenePred -genePredExt inputs/fasta/mm10.refGene.gtf inputs/fasta/mm10_refGene0.txt
 nl inputs/fasta/mm10_refGene0.txt > inputs/fasta/mm10_refGene.txt
-rm inputs/fasta/mm10_refGene0.txt
+gunzip -c inputs/fasta/mm10.fa.gz > inputs/fasta/mm10.fa
+perl scripts/retrieve_seq_from_fasta.pl inputs/fasta/mm10_refGene.txt -seqfile inputs/fasta/mm10.fa -format refGene -outfile inputs/fasta/mm10_refGeneMrna.fa
+rm inputs/fasta/mm10_refGene0.txt inputs/fasta/mm10.fa
 
 ### get known SNPs ###
 mkdir -p inputs/vcf
