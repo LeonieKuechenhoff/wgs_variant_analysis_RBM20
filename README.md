@@ -80,9 +80,14 @@ snakemake -s snakefile --profile profile --use-conda --config mutation=p635l
 If all samples with the R636Q mutation should be run, call:  
 snakemake -s snakefile --profile profile --use-conda --config mutation=r636q  
 
-### analysis
-This folder cotains all costum made scripts to analyze variants.
-It has the following files:
+### analysis  
+This folder cotains all costum made scripts to analyze variants.  
+
+##### 2. Clone and follow installation instructions from the following git repositories:
+ - reditools2 from https://github.com/BioinfoUNIBA/REDItools2
+Add file location to RNA/analysis/config.sh
+
+The analysis of the data includes the following files:
 
 #### Python scripts and jupyter notebooks
 
@@ -91,56 +96,40 @@ Paths that are used several times in scripts. Are imported at start of most scri
 - config.sh 
 Paths that are used several times in bash scripts.  
 
+- annotation.ipynb  
+ Annotate txt files and add info if variant is on pos. or negative strand. Save annotated df in annotation_dir
+
 - tissue_spec_list.ipynb 
 Write one list per tissue of tissue specific variants (with anntation in which other samples these variant occur)
 
-- variant_caller_venn_HC_PL_ST.ipynb  
-Script to plot venn diagrams for variants called by HC, PL and ST
--on_target_AF.pynb  
-Plot allele frequency of on-target edits
 - AF.ipynb  
-Plot counts of tissue specific and common variants & check relationship to read coverage
+Plot counts of tissue specific and common variants & check relationship to read coverage  
+
 - SNP_type_pm_strand.ipynb  
 Calculate fraction of SNP per sample and categorize into type of SNP
-
-- annotation.ipynb  
- Annotate txt files and add info if variant is on pos. or negative strand. Save annotated df in annotation_dir
 
  - bystander_edits.ipynb  
  Search for bystander edits (edits in gRNA binding region)
 
- - bystander_edits_DNA.ipynb 
- Search for bystander edits (edits in gRNA binding region) but with DNA data  
-
 - variant_sourrounding.ipynb  
 Script to check list of variants in more detail.  
 Question that is adressed:  
-Are there any gRNA Sequence similarities in proximity?
+Are there any gRNA Sequence similarities in proximity of each heart specific variant?
 
-- cas_offinder.ipynb  
-Import potential off-target sites (found by cas-offinder) & export bam file with regions of interest  
-
-- offinder_redi.ipynb  
-Import reads exported with reditools in all potential off-target sites (found by cas-offinder, <= 5 mismatches to gRNA) and plot to see a trend  
-
-- compare_cov.ipynb  
-Script to compare coverge across samples
+- semi_global_alignment.pl  
+Helper scrip that is called in variant_surrounding.ipynb. Searches for Seqeuence similarities of two sequences and  
+returns number of mismatches of best match.
 
 - cass9_expr.ipynb
 Script to compare nCas9 expression (requires cas_expr_start.sh to run first)
 
-- count_tissuespec_vartypes.ipynb
-Script to compare variantion types within tissue specifc variants
-
 - signif_testing.ipynb
 Script to test significance of AG variant proportion
 
-- input.txt / input2.txt  
-Txt files that are used for bash_scripts/offinder.sh and contain the sgRNA + PAM sequences
 
 
 
-#### Bash scripts
+#### Bash scripts - /analysis/bash/
 Syntax:  
 a) Script to start script b on slurm  
 b) Actual script  
@@ -150,26 +139,10 @@ a)cas_expr_start.sh
 b)cas_expr.sh
 script to identify Cas9 expression
 
-a)coverage_start.sh  
-b)coverage.sh  
-script to extract read coverage in 100 bp bins  
-
-a) offinder_start.sh  
-b) offinder.sh  
-script to extract potential off-target sites by getting sites with few mismatches across the genome  
-
-a)offinder_redi_start_DNA.sh   
-b)offinder_redi_DNA.sh   
-script to run reditools on potential off target positions with RNA data   
-
-a) offinder_redi_start.sh   
-b) offinder_redi.sh   
-script to run reditools on potential off target positions with DNA data   
-
 a) reditools_start.sh  
 b) reditools.sh  
 script to run reditools on area around target-site with RNA data  
 
 readcount.sh
-Script to run reditools on area around target-site with RNA data
+Script to give read count of primary aligned mapped reads per sample
 
