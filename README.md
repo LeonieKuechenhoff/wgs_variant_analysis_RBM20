@@ -1,6 +1,12 @@
 # wgs_variant_analysis_RBM20
 Whole genome and transcriptome sequencing analysis to investigate on- and off-target effects of CRISPR base-editor treatment.
 
+Publication: 
+Grosch, M., Schraft, L., Chan, A. et al.  
+Striated muscle-specific base editing enables correction of mutations causing dilated cardiomyopathy.   
+Nat Commun 14, 3714 (2023).   
+https://doi.org/10.1038/s41467-023-39352-1
+
 
 ## DNA
 
